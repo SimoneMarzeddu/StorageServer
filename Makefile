@@ -1,8 +1,8 @@
 CC 			= gcc
 CFLAGS		= -g -Wall
-TARGETS		= server client
+TARGETS		= server client stats
 
-.PHONY: all clean cleanall test1 test2 test3
+.PHONY: all clean cleanall
 
 #genera tutti gli eseguibili
 all : $(TARGETS)
@@ -13,14 +13,16 @@ server : src/server.c
 	$(CC) $(CFLAGS) $< -o $@ -lpthread
 
 client : src/client.c lib/libapi.a
-	$(CC) $(CFLAGS) $< -I ./headers/api.h -o $@ -L ./lib/libapi.a
+	$(CC) $(CFLAGS) $< -o $@ -L ./lib/ lib/libapi.a
 
 objs/api.o : src/api.c
-	$(CC) -g -c $< -I ./headers/api.h -o $@
+	$(CC) -g -c $< -o $@
 
 lib/libapi.a : objs/api.o
 	ar rcs $@ $<
 
+stats :
+	chmod +x ./script/statistiche.sh
 #elimina gli eseguibili
 clean :
 	-rm -f $(TARGETS)
@@ -29,6 +31,7 @@ clean :
 #*~ ripulisce i files residui di emacs
 cleanall :
 	-rm -f $(TARGETS) objs/*.o lib/*.a tmp/* *~
+
 
 
 

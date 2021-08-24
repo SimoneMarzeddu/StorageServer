@@ -10,7 +10,7 @@
 #include <limits.h>
 #include <libgen.h>
 #include <dirent.h>
-#include "api.h"
+#include "../headers/api.h"
 
 #define MSG_SIZE 1024
 #define MAX_CNT_LEN 1000
@@ -92,6 +92,7 @@ ssize_t writen(int fd, void* ptr, size_t n) {
     }
     return(n - nleft); /* return >= 0 */
 }
+/*
 char* reverse(char* str){
     if(str == NULL){
         errno = EINVAL;
@@ -106,7 +107,7 @@ char* reverse(char* str){
     }
     return str;
 }
-
+*/
 int openConnection(const char* nome_sock, int msec, const struct timespec abstime) {
 
     // nome_sock -> nome del socket a cui il client vuole connettersi
@@ -704,8 +705,4 @@ int readNFiles(int N, const char* dir)
     return file_N;
 }
 
-int main()
-{
-    return 0;
-}
 // UPDATE: 22/08 pomeriggio 2 fine client

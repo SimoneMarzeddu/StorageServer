@@ -1,7 +1,7 @@
 //
 // Created by xubuntu on 21/08/21.
 //
-#include "api.h"
+#include "../headers/api.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -33,7 +33,7 @@ typedef struct node
     struct node* prec; // puntatore al comando precedente nella lista
 
 } node;
-
+/*
 int msSleep(long time)
 {
     if(time < 0) errno = EINVAL;
@@ -50,6 +50,7 @@ int msSleep(long time)
 
     return res;
 }
+ */
 long isNumber(const char* s)
 {
     char* e = NULL;

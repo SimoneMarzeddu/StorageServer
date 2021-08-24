@@ -18,6 +18,8 @@
 #include <dirent.h>
 #include "api.h"
 
+int msSleep(long time);
+
 int openConnection(const char* nome_sock, int msec, const struct timespec abstime);
 
 int closeConnection(const char* nome_sock);
