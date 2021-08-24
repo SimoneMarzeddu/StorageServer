@@ -14,13 +14,10 @@
 #include <limits.h>
 #include <math.h>
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCDFAInspection"
-#pragma clang diagnostic ignored "-Wint-to-void-pointer-cast"
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108
 #define MSG_SIZE 1024
-#define SOCKET_NAME "./ssocket.sk"
-#define LOG_NAME "./log.txt"
+#define SOCKET_NAME "../ssocket.sk"
+#define LOG_NAME "../log.txt"
 
 /* FILE DI LOG:
  *
@@ -1934,9 +1931,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // open_File : <Thrd_id/3/(0|1)/File_Path/flags>;
+        // open_File : <Thrd_id/3/(0|1)/File_Path/flags>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/3/%d/%s/%d>;",pthread_self(),log_res,path,flags);
+        fprintf(log_file,"<%lu/3/%d/%s/%d>\n",pthread_self(),log_res,path,flags);
         Pthread_mutex_unlock(&log_mtx);
     }
     else
@@ -1978,7 +1975,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         // UPDATE DEL FILE DI LOG
         // close_File : <Thrd_id/10/(0|1)/File_Path>;
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/10/%d/%s>;",pthread_self(),log_res,path);
+        fprintf(log_file,"<%lu/10/%d/%s>;\n",pthread_self(),log_res,path);
         Pthread_mutex_unlock(&log_mtx);
     }
     else
@@ -2019,9 +2016,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // lock_File : <Thrd_id/8/(0|1)/File_Path>;
+        // lock_File : <Thrd_id/8/(0|1)/File_Path>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/8/%d/%s>;",pthread_self(),log_res,path);
+        fprintf(log_file,"<%lu/8/%d/%s>\n",pthread_self(),log_res,path);
         Pthread_mutex_unlock(&log_mtx);
     }
     else
@@ -2062,9 +2059,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // unlock_File : <Thrd_id/9/(0|1)/File_Path>;
+        // unlock_File : <Thrd_id/9/(0|1)/File_Path>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/9/%d/%s>;",pthread_self(),log_res,path);
+        fprintf(log_file,"<%lu/9/%d/%s>\n",pthread_self(),log_res,path);
         Pthread_mutex_unlock(&log_mtx);
     }
     else
@@ -2104,9 +2101,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // remove_File : <Thrd_id/11/(0|1)/File_Path>;
+        // remove_File : <Thrd_id/11/(0|1)/File_Path>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/11/%d/%s>;",pthread_self(),log_res,path);
+        fprintf(log_file,"<%lu/11/%d/%s>\n",pthread_self(),log_res,path);
         Pthread_mutex_unlock(&log_mtx);
     }
     else
@@ -2199,9 +2196,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // write_File : <Thrd_id/6/(0|1)/File_Path/size/Rplc(0|1)/Rplc_no/Rplc_size>;
+        // write_File : <Thrd_id/6/(0|1)/File_Path/size/Rplc(0|1)/Rplc_no/Rplc_size>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/6/%d/%s/%lu/%d/%lu/%lu>;",pthread_self(),log_res,path,cnt_size,rpl,rpl_no,rpl_size);
+        fprintf(log_file,"<%lu/6/%d/%s/%lu/%d/%lu/%lu>\n",pthread_self(),log_res,path,cnt_size,rpl,rpl_no,rpl_size);
         Pthread_mutex_unlock(&log_mtx);
         f_list_free(tmp);
     }
@@ -2296,9 +2293,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // append_to_File : <Thrd_id/7/(0|1)/File_Path/size/Rplc(0|1)/Rplc_no/Rplc_size>;
+        // append_to_File : <Thrd_id/7/(0|1)/File_Path/size/Rplc(0|1)/Rplc_no/Rplc_size>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/7/%d/%s/%lu/%d/%lu/%lu>;",pthread_self(),log_res,path,cnt_size,rpl,rpl_no,rpl_size);
+        fprintf(log_file,"<%lu/7/%d/%s/%lu/%d/%lu/%lu>\n",pthread_self(),log_res,path,cnt_size,rpl,rpl_no,rpl_size);
         Pthread_mutex_unlock(&log_mtx);
         f_list_free(tmp);
     }
@@ -2347,9 +2344,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // read_File : <Thrd_id/4/(0|1)/File_Path/size>;
+        // read_File : <Thrd_id/4/(0|1)/File_Path/size>
         Pthread_mutex_lock(&log_mtx);
-        fprintf(log_file,"<%lu/4/%d/%s/%ld>;",pthread_self(),log_res,path,size);
+        fprintf(log_file,"<%lu/4/%d/%s/%ld>\n",pthread_self(),log_res,path,size);
         Pthread_mutex_unlock(&log_mtx);
         free(buf);
     }
@@ -2432,7 +2429,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
 
         // UPDATE DEL FILE DI LOG
-        // read_NFiles : <Thrd_id/5/(0|1)/Read_no/size>;
+        // read_NFiles : <Thrd_id/5/(0|1)/Read_no/size>
         Pthread_mutex_lock(&log_mtx);
         fprintf(log_file,"<%lu/5/%d/%d/",pthread_self(),log_res,count);
 
@@ -2441,11 +2438,12 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
 
         while(curs != NULL)
         {
-            fprintf(log_file,"%s/",curs->path);
+            //fprintf(log_file,"%s/",curs->path);
             tot_size = tot_size + strlen(curs->cnt);
+            curs = curs->next;
         }
 
-        fprintf(log_file,"%lu>",tot_size);
+        fprintf(log_file,"%lu>\n",tot_size);
         Pthread_mutex_unlock(&log_mtx);
         f_list_free(tmp);
     }
@@ -2729,7 +2727,6 @@ int main(int argc, char* argv[])
         int fd;
         fd_set set;
         fd_set rd_set;
-        int nread;
         struct sockaddr_un sa;
         strncpy(sa.sun_path,SOCKET_NAME,UNIX_MAX_STANDARD_FILENAME_LENGHT);
         sa.sun_family = AF_UNIX;
@@ -2898,11 +2895,10 @@ int main(int argc, char* argv[])
     } // elaborazioni per il file delle statistiche
 
     {
-        fprintf(log_file,"END;");
-        fprintf(log_file,"stats;");
-        fprintf(log_file,"%lu;%lu;%lu;%lu;%lu;%lu;%lu;%lu;%lu;%lu;%lu;",read_no,media_read_size,write_no,media_write_size,lock_no,openlock_no,unlock_no,close_no,max_size_reached,max_no_reached,replace_no);
+        fprintf(log_file,"END;\n");
+        fprintf(log_file,"stats;\n");
+        fprintf(log_file,"-Numero di read: %lu;\n-Size media delle letture in bytes: %lu;\n-Numero di write: %lu;\n-Size media delle scritture in bytes: %lu;\n-Numero di lock: %lu;\n-Numero di openlock: %lu;\n-Numero di unlock: %lu;\n-Numero di close: %lu;\n-Dimensione massima dello storage in MB: %lu;\n-Dimensione massima dello storage in numero di files: %lu;\n-Numero di replace per selezionare un file vittima: %lu;\n-Massimo numero di connessioni contemporanee: %lu;",read_no,media_read_size,write_no,media_write_size,lock_no,openlock_no,unlock_no,close_no,max_size_reached,max_no_reached,replace_no,max_connections_no);
         // il numero di richieste soddisfatte da ogni thread è lasciato al parsing in statistiche.sh
-        fprintf(log_file,"%lu;",max_connections_no);
     } // chiusura del file di log
 
     {
@@ -2926,5 +2922,4 @@ int main(int argc, char* argv[])
 
 }
 
-#pragma clang diagnostic pop
 // UPDATE: 22/08 pomeriggio 2 fine client
