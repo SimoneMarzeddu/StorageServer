@@ -13,10 +13,10 @@ server : src/server.c
 	$(CC) $(CFLAGS) $< -o $@ -lpthread
 
 client : src/client.c lib/libapi.a
-	$(CC) $(CFLAGS) $< -o $@ -L ./lib/libapi.a
+	$(CC) $(CFLAGS) $< -I ./headers/api.h -o $@ -L ./lib/libapi.a
 
 objs/api.o : src/api.c
-	$(CC) -g -c $< -o $@
+	$(CC) -g -c $< -I ./headers/api.h -o $@
 
 lib/libapi.a : objs/api.o
 	ar rcs $@ $<
@@ -29,6 +29,18 @@ clean :
 #*~ ripulisce i files residui di emacs
 cleanall :
 	-rm -f $(TARGETS) objs/*.o lib/*.a tmp/* *~
+
+#primo test
+test1 : $(TARGETS)
+	valgrind --leak-check=full ./server -s configTest1/config.txt &
+	chmod +x test1.sh
+	./test1.sh &
+
+#secondo test
+test2 : $(TARGETS)
+	./server -s configTest2/config.txt &
+	chmod +x test2.sh
+	./test2.sh &
 
 
 
