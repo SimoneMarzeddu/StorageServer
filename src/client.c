@@ -104,7 +104,7 @@ void w_exec (char* dirname, int n, char* dest_dirname)
                 {
                     if (errno == ENOENT)
                     {
-                        if (openFile(resolvedPath,2) == -1)
+                        if (openFile(resolvedPath,3) == -1)
                         {
                             if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                             perror("ERRORE: apertura del file fallita");
@@ -493,17 +493,17 @@ int main (int argc, char * argv[])
                     if (n>0)
                     {
                         w_exec(namedir,n,Dir);
-                        if (flag_stampa==1) printf("Operazione : -w (scrivi directory) Directory : %s Esito : positivo\n",namedir);
+                        if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : successo\n",namedir);
                     }
                     else
                         if (n==0)
                         {
                             w_exec(namedir,INT_MAX,Dir);
-                            if (flag_stampa==1) printf("Operazione : -w (scrivi directory) Directory : %s Esito : positivo\n",namedir);
+                            if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : successo\n",namedir);
                         }
                         else
                         {
-                            if (flag_stampa==1) printf("Operazione : -w (scrivi directory) Directory : %s Esito : negativo\n",namedir);
+                            if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
                             printf("Utilizzo : -w dirname[,n]\n");
                         }
                 }

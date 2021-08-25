@@ -1204,41 +1204,58 @@ static int max_up (fd_set set, int fdmax)
     assert(1==0);
     return -1;
 }
-static ssize_t readn(int fd, void* ptr, size_t n)
-{
-    size_t nleft;
-    ssize_t nread;
 
+/* Read "n" bytes from a descriptor. */
+ssize_t readn(int fd, void *vptr, size_t n)
+{
+    size_t  nleft;
+    ssize_t nread;
+    char   *ptr;
+
+    ptr = vptr;
     nleft = n;
     while (nleft > 0)
     {
-        if((nread = read(fd, ptr, nleft)) == -1) //prima era "< 0"
-        {
-            if (nleft == n) return -1; // error, return -1
-            else break; //error, return amount read so far
-        }// else if (nread == 0) break; // EOF
-        nleft -= nread;
-        ptr += nread;
+         if ( (nread = read(fd, ptr, nleft)) < 0)
+         {
+             if (errno == EINTR) nread = 0; /* and call read() again */
+             else return (-1);
+         }
+         else
+         {
+             if (nread == 0) break;  /* EOF */
+
+         }
+
+         nleft -= nread;
+         if (nleft == 0) break;
+         ptr += nread;
     }
-    return(n - nleft); //return >= 0
+    //printf("\n READ restituisco: %s\n",ptr);
+    return (n - nleft);         /* return >= 0 */
 }
-static ssize_t writen(int fd, void* ptr, size_t n)
+
+/* Write "n" bytes to a descriptor. */
+ssize_t writen(int fd, const void *vptr, size_t n)
 {
     size_t nleft;
     ssize_t nwritten;
+    const char *ptr;
 
+    ptr = vptr;
     nleft = n;
     while (nleft > 0)
     {
-        if((nwritten = write(fd, ptr, nleft)) < 0)
+        if ( (nwritten = write(fd, ptr, nleft)) <= 0)
         {
-            if (nleft == n) return -1; // error, return -1
-            else break; // error, return amount written so far
-        } else if (nwritten == 0) break;
+            if (nwritten < 0 && errno == EINTR) nwritten = 0;   /* and call write() again */
+            else return (-1);    /* error */
+        }
+
         nleft -= nwritten;
         ptr += nwritten;
     }
-    return(n - nleft);// return >= 0
+    return (n);
 }
 
 /* open_FILE : FLAGS
@@ -1797,16 +1814,16 @@ static int close_File (char* path, size_t c_pid)
 
         if(c_list_rem_node(tmp->whoop,c_pid) == -1)
         {
-            Pthread_mutex_lock(&(tmp_lst->mtx));
+            Pthread_mutex_unlock(&(tmp_lst->mtx));
             return -1;
         }
-        Pthread_mutex_lock(&(tmp_lst->mtx));
+        Pthread_mutex_unlock(&(tmp_lst->mtx));
         return 0;
     }
     else
     {
         errno = EPERM;
-        Pthread_mutex_lock(&(tmp_lst->mtx));
+        Pthread_mutex_unlock(&(tmp_lst->mtx));
         return -1;
     }
 
@@ -1949,7 +1966,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
-            perror("Worker : scrittura nel socket");
             end = -1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
             write(fd_pipe,&end,sizeof(end));
@@ -2452,9 +2468,6 @@ static void* w_routine (void* arg)
     int end = 0; //valore indicante la terminazione del client
     while (1)
     {
-        char quest [MSG_SIZE];
-        memset(quest,0,MSG_SIZE);
-
         //un client viene espulso dalla coda secondo la politica fifo
         Pthread_mutex_lock(&coda_mtx);
         fd_c = c_list_pop_worker(coda);
@@ -2469,9 +2482,13 @@ static void* w_routine (void* arg)
 
         while (end != 1)
         {
+            char quest [MSG_SIZE];
+            memset(quest,0,MSG_SIZE);
+
             //il client viene servito dal worker in ogni sua richiesta sino alla disconnessione
             int len = readn(fd_c, quest, MSG_SIZE);
 
+            //printf("\n il comando letto è : %s",quest);
             if (len == -1)
             {// il client è disconnesso, il worker attenderà il prossimo
                 end = 1;
@@ -2658,6 +2675,7 @@ int main(int argc, char* argv[])
         if (o == -1)
         {
             perror("pthread_sigmask");
+            fflush(stdout);
             exit(EXIT_FAILURE);
         }
     } // gestione dei segnali
@@ -2707,6 +2725,7 @@ int main(int argc, char* argv[])
             if (o == -1)
             {
                 perror("creazione pthread");
+                fflush(stdout);
                 exit(EXIT_FAILURE);
             }
         }
@@ -2752,6 +2771,7 @@ int main(int argc, char* argv[])
         FD_SET(pip[0],&set);
 
         printf("Attesa dei Clients\n");
+
         while (1)
         {
             rd_set = set;//ripristino il set di partenza
@@ -2797,7 +2817,7 @@ int main(int argc, char* argv[])
                         if (fd_c > fd_num) fd_num = fd_c;//tengo aggiornato l'indice massimo
                         currconnections_no++;//aggiornamento variabili per le statistiche
                         if(currconnections_no > max_connections_no) max_connections_no = currconnections_no;
-                        printf ("Connessione con il Client completata\n");
+                        //printf ("SERVER : Connessione con il Client completata\n");
                     }
                     else
                         if (fd == pip[0])

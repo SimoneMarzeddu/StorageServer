@@ -62,36 +62,53 @@ int compareTime(struct timespec a, struct timespec b){
     else
         return -1;
 }
-ssize_t readn(int fd, void* ptr, size_t n) {
-    size_t   nleft;
-    ssize_t  nread;
+/* Read "n" bytes from a descriptor. */
+ssize_t readn(int fd, void *vptr, size_t n)
+{
+    size_t  nleft;
+    ssize_t nread;
+    char   *ptr;
 
+    ptr = vptr;
     nleft = n;
-    while (nleft > 0) {
-        if((nread = read(fd, ptr, nleft)) < 0) {
-            if (nleft == n) return -1; /* error, return -1 */
-            else break; /* error, return amount read so far */
-        } else if (nread == 0) break; /* EOF */
+    while (nleft > 0)
+    {
+        if ( (nread = read(fd, ptr, nleft)) < 0)
+        {
+            if (errno == EINTR) nread = 0; /* and call read() again */
+            else return (-1);
+        }
+        else
+        if (nread == 0) break;  /* EOF */
         nleft -= nread;
-        ptr   += nread;
+        ptr += nread;
     }
-    return(n - nleft); /* return >= 0 */
+    return (n - nleft);         /* return >= 0 */
 }
-ssize_t writen(int fd, void* ptr, size_t n) {
-    size_t   nleft;
-    ssize_t  nwritten;
 
+/* Write "n" bytes to a descriptor. */
+ssize_t writen(int fd, const void *vptr, size_t n)
+{
+    size_t nleft;
+    ssize_t nwritten;
+    const char *ptr;
+
+    ptr = vptr;
     nleft = n;
-    while (nleft > 0) {
-        if((nwritten = write(fd, ptr, nleft)) < 0) {
-            if (nleft == n) return -1; /* error, return -1 */
-            else break; /* error, return amount written so far */
-        } else if (nwritten == 0) break;
+    while (nleft > 0)
+    {
+        if ( (nwritten = write(fd, ptr, nleft)) <= 0)
+        {
+            if (nwritten < 0 && errno == EINTR) nwritten = 0;   /* and call write() again */
+            else return (-1);    /* error */
+        }
+
         nleft -= nwritten;
-        ptr   += nwritten;
+        ptr += nwritten;
     }
-    return(n - nleft); /* return >= 0 */
+    return (n);
 }
+
 /*
 char* reverse(char* str){
     if(str == NULL){
@@ -137,7 +154,7 @@ int openConnection(const char* nome_sock, int msec, const struct timespec abstim
         return -1;
     }
 
-    printf("Operazione Completata : openConnection\n");
+    // printf("Operazione Completata : openConnection\n");
     c_state = 1;// la flag di connessione viene settata ad 1
     strcpy(sck_name, nome_sock);// il nome del socket viene memorizzato in una variabile globale
     return 0;
@@ -157,7 +174,7 @@ int closeConnection(const char* nome_sock)
             errno = EREMOTEIO;
             return -1;
         }
-        printf("Operazione Completata : closeConnection\n");
+        //printf("Operazione Completata : closeConnection\n");
         return 0;
     }
     else
@@ -177,7 +194,7 @@ int openFile(const char* path, int flags) {
     char* save = NULL;
     char buffer [MSG_SIZE];
     memset(buffer,0,MSG_SIZE);
-    sprintf(buffer, "openFile;%s;%d;",path, flags);// il comando viene scritto sulla stringa buffer
+    snprintf(buffer, MSG_SIZE,"openFile;%s;%d;",path, flags);// il comando viene scritto sulla stringa buffer
 
     if(writen(fd_s, buffer, MSG_SIZE) == -1)// il comando viene scritto nel canale con il server
     {
@@ -201,13 +218,12 @@ int openFile(const char* path, int flags) {
     }
     else
     { //l'operazione eseguita dal server è stata completata correttamente
-        printf("Operazione Completata : openFile\n");
+        // printf("Operazione Completata : openFile\n");
         return 0;
     }
 
 }
 int closeFile(const char* path) {
-
     if (c_state == 0) // il client è disconnesso
     {
         errno = ENOTCONN;
@@ -216,8 +232,8 @@ int closeFile(const char* path) {
 
     char buffer[MSG_SIZE];
     memset(buffer,0,MSG_SIZE);
-    sprintf(buffer, "closeFile;%s", path);
-
+    sprintf(buffer, "closeFile;%s;", path);
+    fflush(stdout);
     if(writen(fd_s, buffer, MSG_SIZE) == -1)
     {
         errno = EREMOTEIO;
@@ -241,7 +257,7 @@ int closeFile(const char* path) {
     }
     else // operazione terminata con successo
     {
-        printf("Operazione Completata : closeFile\n");
+        //printf("Operazione Completata : closeFile\n");
         return 0;
     }
 }
@@ -280,10 +296,9 @@ int removeFile(const char* path) {
     }
     else
     {// operazione terminata con successo
-        printf("Operazione Completata : removeFile\n");
+        // printf("Operazione Completata : removeFile\n");
         return 0;
     }
-
 }
 int lockFile(const char* path)
 {
@@ -321,7 +336,7 @@ int lockFile(const char* path)
     }
     else
     { // operazione terminata con successo
-        printf("Operazione Completata : lockFile\n");
+        // printf("Operazione Completata : lockFile\n");
         return 0;
     }
 }
@@ -359,7 +374,7 @@ int unlockFile(const char* path)
     }
     else
     { // operazione con successo
-        printf("Operazione Completata : unlockFile\n");
+        // printf("Operazione Completata : unlockFile\n");
         return 0;
     }
 }
@@ -421,6 +436,10 @@ int writeFile(const char* path, const char* dir)
     {
         int rem_n = (int) strtol(token, NULL, 10);
         int i = 0;
+        if (writen(fd_s, "1", MSG_SIZE) == -1) {
+            errno = EREMOTEIO;
+            return -1;
+        }
         while (i < rem_n)
         {
             if (readn(fd_s, message, MSG_SIZE) == -1)
@@ -460,7 +479,7 @@ int writeFile(const char* path, const char* dir)
             }
             i++;
         }
-        printf("Operazione Completata : writeFile\n");
+        // printf("Operazione Completata : writeFile\n");
         return 0;
     }
 }
@@ -551,7 +570,7 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
             }
             i++;
         }
-        printf("Operazione Completata : appendToFile\n");
+        // printf("Operazione Completata : appendToFile\n");
         return 0;
     }
 }
@@ -597,7 +616,7 @@ int readFile(const char* path, void** buf, size_t* size) {
         token = strtok_r(NULL, ";", &save);
         size_t sizeFile = (int) strtol(token, NULL, 10);
         *size = sizeFile;
-        printf("Operazione Completata : readFile\n");
+        // printf("Operazione Completata : readFile\n");
         return 0;
     }
 }
@@ -700,7 +719,7 @@ int readNFiles(int N, const char* dir)
             }
         }
     }
-    printf("Operazione Completata : readNFile\n");
+    // printf("Operazione Completata : readNFile\n");
     return file_N;
 }
 

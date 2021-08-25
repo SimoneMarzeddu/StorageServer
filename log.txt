@@ -1,3 +1,25 @@
 START
 op/100771584/3/0//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/0
-op/100771584/3/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/2
+op/100771584/3/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/3
+op/100771584/6/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/248/0/0/0
+op/100771584/10/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt
+op/100771584/3/0//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f5.txt/0
+op/100771584/3/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f5.txt/3
+op/100771584/6/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f5.txt/226/0/0/0
+op/100771584/10/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f5.txt
+op/100771584/3/0/f4/0
+op/100771584/3/0/f5/0
+END
+SUNTO DELLE STATISTICHE:
+-Numero di read: 0;
+-Size media delle letture in bytes: 9223372036854775808;
+-Numero di write: 2;
+-Size media delle scritture in bytes: 237;
+-Numero di lock: 2;
+-Numero di openlock: 2;
+-Numero di unlock: 0;
+-Numero di close: 2;
+-Dimensione massima dello storage in MB: 0;
+-Dimensione massima dello storage in numero di files: 2;
+-Numero di replace per selezionare un file vittima: 0;
+-Massimo numero di connessioni contemporanee: 1;
