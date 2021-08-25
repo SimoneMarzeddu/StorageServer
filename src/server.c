@@ -320,33 +320,34 @@ static int c_list_rem_node (c_list* lst, size_t c_pid)
 
     if (lst->head == NULL)
     {
-        errno = ENOENT;
-        return -1;
+        return 0;
     }
 
     c_node* cursor = lst->head;
     // eliminazione di un nodo in testa
-    if (c_pid == lst->head->c_pid)
+    if ( lst->head != NULL)
     {
-        if(lst->head->next != NULL)
-        {
-            lst->head->next->prec = NULL;
-            lst->head = lst->head->next;
+        if (c_pid == lst->head->c_pid) {
+            if (lst->head->next != NULL)
+            {
+                lst->head->next->prec = NULL;
+                lst->head = lst->head->next;
 
-            free(cursor);
-            return 1;
-        }
-        else
-        {
-            lst->head = NULL;
-            lst->tail = NULL;
+                free(cursor);
+                return 1;
+            }
+            else
+            {
+                lst->head = NULL;
+                lst->tail = NULL;
 
-            free(cursor);
-            return 1;
+                free(cursor);
+                return 1;
+            }
         }
+        cursor = lst->head->next;
     }
 
-    cursor = lst->head->next;
     while (cursor != NULL)
     {
         if (cursor->c_pid == c_pid)
@@ -368,8 +369,7 @@ static int c_list_rem_node (c_list* lst, size_t c_pid)
         cursor = cursor->next;
     }
 
-    errno = ENOENT;
-    return -1;
+    return 0;
 }
 
 //    FUNZIONI PER AMMINISTRARE I FILE    //
@@ -1068,7 +1068,7 @@ static void hash_print (hash* tbl)
     int i;
     for(i = 0; i<tbl->lst_no; i++)
     {
-        f_list_print(tbl->lists[i]);
+        if(tbl->lists[i]->size > 0) f_list_print(tbl->lists[i]);
     }
 
     printf("END\n");
@@ -1292,12 +1292,13 @@ static int open_File (char* path, int flags, size_t c_pid)
 
             Pthread_mutex_lock(&(tmp_lst->mtx));
 
+            sleep(2);
+
             if(c_list_rem_node(tmp->whoop,c_pid) == -1)
             {
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
                 return -1;
             }
-
             if (tmp->lock_owner == 0 || tmp->lock_owner == c_pid) tmp->op = 1;
             Pthread_mutex_unlock(&(tmp_lst->mtx));
             return 0;
@@ -1458,9 +1459,8 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
 
         if (tmp->lock_owner == 0 || tmp->lock_owner == c_pid)
         {
-            *size = strlen(tmp->cnt);
-
-            buf = malloc(sizeof(char) * (*size));
+            *size = strlen((char*)tmp->cnt);
+            buf = malloc(sizeof(char) * MAX_CNT_LEN);
             if (buf == NULL)
             {
                 errno = ENOMEM;
@@ -1470,6 +1470,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
 
             strcpy(buf, tmp->cnt);
 
+            printf("\n il peggio è passato\n");
             Pthread_mutex_lock(&stats_mtx);
             read_no++;
             total_read_size = total_read_size + (*size);
@@ -1630,13 +1631,12 @@ static f_list* write_File (char* path, char* cnt, size_t c_pid)
     size_t size_o = strlen(tmp->cnt);
     free(tmp->cnt);
     size_t size_na = strlen(cnt);
-    tmp->cnt = malloc(sizeof(char)*size_na);
-    if (strncpy(tmp->cnt,cnt,size_na) == NULL)
+    tmp->cnt = malloc(sizeof(char)*MAX_CNT_LEN);
+    if (strcpy(tmp->cnt,cnt) == NULL)//size_na
     {
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
     }
-
     Pthread_mutex_lock(&stats_mtx);
     curr_size = curr_size + size_na - size_o;
     write_no++;
