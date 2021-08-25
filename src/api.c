@@ -408,7 +408,6 @@ int writeFile(const char* path, const char* dir)
         return -1;
     }
 
-
     char *token;
     char *save = NULL;
     token = strtok_r(message, ";", &save);

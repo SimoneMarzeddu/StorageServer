@@ -1,3 +1,4 @@
 max_no=50
 max_size=1000
 thread_no=4
+socket_name=./jotaro.sk

@@ -106,7 +106,7 @@ void w_exec (char* dirname, int n, char* dest_dirname)
                     {
                         if (openFile(resolvedPath,2) == -1)
                         {
-                            if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                            if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                             perror("ERRORE: apertura del file fallita");
                         }
                         else
@@ -115,21 +115,21 @@ void w_exec (char* dirname, int n, char* dest_dirname)
                             //scrittura nel file
                             if (writeFile(resolvedPath,dest_dirname) == -1)
                             {
-                                if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                                if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                                 perror("ERRORE: scrittura nel  file");
                             }
-                            if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Dimensione totale della scrittura: %lu Esito : successo\n",resolvedPath,get_last_w_size());
+                            if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Dimensione totale della scrittura: %lu Esito : successo\n",resolvedPath,get_last_w_size());
                             //chiusura del file
                             if (closeFile(resolvedPath)==-1)
                             {
-                                if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                                if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                                 perror("ERRORE: chiusura del file");
                             }
                         }
                     }
                     else
                     {
-                        if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                        if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                         perror("ERRORE: apertura del file fallita");
                     }
                 }
@@ -139,14 +139,14 @@ void w_exec (char* dirname, int n, char* dest_dirname)
                     //scrittura nel file
                     if (writeFile(resolvedPath,dest_dirname) == -1)
                     {
-                        if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                        if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                         perror("ERRORE: scrittura nel  file");
                     }
-                    if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Dimensione totale della scrittura: %lu Esito : successo\n",resolvedPath,get_last_w_size());
+                    if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Dimensione totale della scrittura: %lu Esito : successo\n",resolvedPath,get_last_w_size());
                     //chiusura del file
                     if (closeFile(resolvedPath)==-1)
                     {
-                        if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
+                        if (flag_stampa==1) printf("OP : -w (scrivi file) File : %s Esito : fallimento\n",resolvedPath);
                         perror("ERRORE: chiusura del file");
                     }
                 }
@@ -214,6 +214,7 @@ void addLast (node** lst, char* cmd, char* arg)
 */
  int containCMD (node** lst, char* cmd, char** arg)
 {
+
     node * curr = *lst;
     int found = 0;
 
@@ -239,7 +240,7 @@ void addLast (node** lst, char* cmd, char* arg)
 
         if (curr->prec == NULL)
         {
-            curr->next->prec = NULL;
+            if(curr->next != NULL) curr->next->prec = NULL;
             *lst = (*lst)->next;
             free(curr->arg);
             free(curr->cmd);
@@ -248,7 +249,7 @@ void addLast (node** lst, char* cmd, char* arg)
         else
         {
             curr->prec->next = curr->next;
-            curr->next->prec = curr->prec;
+            if(curr->next != NULL) curr->next->prec = curr->prec;
             free(curr->arg);
             free(curr->cmd);
             free(curr);
@@ -299,7 +300,7 @@ int main (int argc, char * argv[])
     char* resolvedPath = NULL; // stringa per il path assoluto
 
     // la lista dei comandi viene popolata secondo gli argomenti di avvio
-    while ((opt = getopt(argc,argv,"hpf:w:W:r:R:d:t:c:")) != -1)
+    while ((opt = getopt(argc,argv,"hpf:w:W:u:l:D:r:R:d:t:c:")) != -1)
     {
         switch (opt)
         {

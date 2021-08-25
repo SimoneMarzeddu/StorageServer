@@ -1,27 +1,3 @@
 START
-op/9
-op/8
-op/2
-op/1
-op/1
-op/104
-op/9
-op/9
-op/8
-op/1
-op/104
-END
-SUNTO DELLE STATISTICHE:
--Numero di read: 0;
--Size media delle letture in bytes: 9223372036854775808;
--Numero di write: 0;
--Size media delle scritture in bytes: 9223372036854775808;
--Numero di lock: 0;
--Numero di openlock: 0;
--Numero di unlock: 0;
--Numero di close: 0;
--Dimensione massima dello storage in MB: 0;
--Dimensione massima dello storage in numero di files: 0;
--Numero di replace per selezionare un file vittima: 0;
--Massimo numero di connessioni contemporanee: 0;
--
+op/100771584/3/0//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/0
+op/100771584/3/1//home/xubuntu/CLionProjects/PROG/Test1/cartella1/sottocartella1/f4.txt/2

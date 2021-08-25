@@ -16,6 +16,7 @@
 
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108
 #define MSG_SIZE 1024
+#define MAX_CNT_LEN 1000
 #define SOCKET_NAME "./ssocket.sk"
 #define LOG_NAME "./log.txt"
 
@@ -379,9 +380,15 @@ static file* file_init (char* path, char* cnt, size_t lo)
         errno = EINVAL;
         return NULL;
     }
+
     size_t path_len = strnlen(path,UNIX_MAX_STANDARD_FILENAME_LENGHT);
     size_t cnt_len = strlen(cnt);
     if (path_len > UNIX_MAX_STANDARD_FILENAME_LENGHT)
+    {
+        errno = ENAMETOOLONG;
+        return NULL;
+    }
+    if (cnt_len > MAX_CNT_LEN)
     {
         errno = ENAMETOOLONG;
         return NULL;
@@ -395,23 +402,9 @@ static file* file_init (char* path, char* cnt, size_t lo)
         return NULL;
     }
 
-    tmp->path = malloc(sizeof(char)*path_len);
-    if (tmp->path == NULL)
-    {
-        errno = ENOMEM;
-        free(tmp->path);
-        return NULL;
-    }
+    tmp->path = malloc(sizeof(char)*UNIX_MAX_STANDARD_FILENAME_LENGHT);
     strcpy(tmp->path,path);
-
-    tmp->cnt = malloc(sizeof(char)*cnt_len);
-    if (tmp->cnt == NULL)
-    {
-        errno = ENOMEM;
-        free(tmp->cnt);
-        return NULL;
-    }
-
+    tmp->cnt = malloc(sizeof(char)*MAX_CNT_LEN);
     strcpy(tmp->cnt,cnt);
 
     tmp->lock_owner = lo;
@@ -482,14 +475,7 @@ static fifo_node* fifo_node_init (char* path)
     }
     tmp->next = NULL;
     tmp->prec = NULL;
-    tmp->path = malloc(sizeof(char*));
-    if (tmp->path == NULL)
-    {
-        errno = ENOMEM;
-        free(tmp->path);
-        return NULL;
-    }
-    strcpy(tmp->path,path);
+    tmp->path = path;
 
     return tmp;
 }
@@ -547,8 +533,6 @@ static int fifo_push (fifo* lst, fifo_node* file1)
         Pthread_mutex_unlock(&queue_mtx);
         return -1;
     }
-
-
 
     if (lst->head == NULL)
     {
@@ -1371,7 +1355,7 @@ static int open_File (char* path, int flags, size_t c_pid)
                 if (curr_no>max_no_reached) max_no_reached = curr_no;
                 Pthread_mutex_unlock(&stats_mtx);
 
-                Pthread_mutex_lock(&tmp_lst->mtx);
+                Pthread_mutex_unlock(&tmp_lst->mtx);
                 return 0;
             }
 
@@ -2519,11 +2503,13 @@ int main(int argc, char* argv[])
     int i;
     coda = c_list_init();
     int t_soft = 0;
+    char socket_name[100];
 
     {
         max_no = 20;
         max_size = 20 * 1024 * 1024;
         thread_no = 5;
+        strcpy(socket_name,SOCKET_NAME);
     } // valori standard
 
     {
@@ -2551,7 +2537,7 @@ int main(int argc, char* argv[])
             {
                 if (string[0] != '\n')
                 {
-                    int nf; // ->nt
+                    int nf;
                     nf = sscanf(string, "%[^=]=%s", campo, valore);
 
                     if (nf != 2)
@@ -2573,7 +2559,12 @@ int main(int argc, char* argv[])
                             else thread_no = (size_t) n;
                         }
                         else
-                            if (strcmp(campo, "max_no") == 0)
+                            if (strcmp(campo, "socket_name") == 0)
+                            {
+                                strcpy(socket_name,valore);
+                            }
+                            else
+                                if (strcmp(campo, "max_no") == 0)
                             {
                                 long n;
                                 int out = isNumber(valore, &n);
@@ -2585,8 +2576,8 @@ int main(int argc, char* argv[])
                                 }
                                 else max_no = (size_t) n;
                             }
-                            else
-                                if (strcmp(campo, "max_size") == 0)
+                                else
+                                    if (strcmp(campo, "max_size") == 0)
                                 {
                                     long n;
                                     int out = isNumber(valore, &n);
@@ -2604,7 +2595,7 @@ int main(int argc, char* argv[])
             fclose(f_point);
         }
         else printf("Server avviato con parametri di DEFAULT\n");
-        printf("Server INFO: socket_name:%s / num_thread:%lu / max_files:%lu / max_size:%lu\n", SOCKET_NAME, thread_no,
+        printf("Server INFO: socket_name:%s / num_thread:%lu / max_files:%lu / max_size:%lu\n", socket_name, thread_no,
                max_no,
                max_size);
     } // parsing del file di config
@@ -2728,7 +2719,7 @@ int main(int argc, char* argv[])
         fd_set set;
         fd_set rd_set;
         struct sockaddr_un sa;
-        strncpy(sa.sun_path,SOCKET_NAME,UNIX_MAX_STANDARD_FILENAME_LENGHT);
+        strncpy(sa.sun_path,socket_name,UNIX_MAX_STANDARD_FILENAME_LENGHT);
         sa.sun_family = AF_UNIX;
 
         if ((fd_skt = socket(AF_UNIX,SOCK_STREAM,0)) == -1)
@@ -2884,7 +2875,7 @@ int main(int argc, char* argv[])
             }
         }
         free(t_pool);
-        remove(SOCKET_NAME);
+        remove(socket_name);
     } // server core
 
     {
