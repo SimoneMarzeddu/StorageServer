@@ -549,7 +549,7 @@ int main (int argc, char * argv[])
                             {
                                 if (errno == ENOENT)
                                 {
-                                    if (openFile(resolvedPath,2) == -1)
+                                    if (openFile(resolvedPath,3) == -1)
                                     {
                                         if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",file);
                                         perror("ERRORE: apertura del file fallita");
@@ -603,7 +603,7 @@ int main (int argc, char * argv[])
                             printf("ERRORE: %s non e' un file regolare\n",file);
                         }
                     }
-                token2 = strtok_r(NULL,",",&save2);
+                    token2 = strtok_r(NULL,",",&save2);
                 }
             }
         else if (strcmp(curr->cmd,"D") == 0)
@@ -631,66 +631,84 @@ int main (int argc, char * argv[])
 
             while(token3 != NULL)
             {
-                char * file = token3;
-                //per ogni file passato come argomento sarà eseguita la serie open-read-close
+                char *file = token3;
 
-                if (openFile(file,0) == -1)
+                if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
-                    if (flag_stampa==1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n",file);
-                    perror("ERRORE: apertura del file");
-                }
-                else
-                {
-                    //READ FILE
-                    char * buf = NULL;
-                    size_t size;
-                    if (readFile(file,(void**)&buf,&size)==-1)
+                    if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
+                    printf("ERRORE: Il file %s non esiste\n", file);
+                } else {
+                    struct stat info_file;
+                    stat(resolvedPath, &info_file);
+
+                    if (S_ISREG(info_file.st_mode))
                     {
-                        if (flag_stampa==1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n",file);
-                        perror("ERRORE: lettura del file");
-                    }
-                    else
-                    {
-                        if (dir != NULL)
+                        errno = 0;
+                        //per ogni file passato come argomento sarà eseguita la serie open-read-close
+
+                        if (openFile(resolvedPath, 0) == -1)
                         {
-                            //il file letto sarà salvato nella directory impostata
-                            char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
-                            memset(path,0,UNIX_MAX_STANDARD_FILENAME_LENGHT);
-                            char * file_name = basename(file);
-                            sprintf(path,"%s/%s",dir,file_name);
-
-                            //se la directory non esiste essa viene creata
-                            mkdir(dir,S_IRWXU);
-                            //se il file non esiste esso viene creato
-                            FILE* of;
-                            of = fopen(path,"w");
-                            if (of==NULL)
+                            if (flag_stampa == 1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                            perror("ERRORE: apertura del file");
+                        }
+                        else
+                        {//READ FILE
+                            char buf[MSG_SIZE];
+                            size_t size;
+                            if (readFile(resolvedPath, (void **) &buf, &size) == -1)
                             {
-                                if (flag_stampa==1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n",file);
-                                perror("ERRORE: salvataggio del file\n");
+                                if (flag_stampa == 1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                perror("ERRORE: lettura del file");
                             }
                             else
                             {
-                                fprintf(of,"%s",buf);
-                                fclose(of);
+                                if (dir != NULL) {
+                                    //il file letto sarà salvato nella directory impostata
+                                    char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
+                                    memset(path, 0, UNIX_MAX_STANDARD_FILENAME_LENGHT);
+                                    char *file_name = basename(file);
+                                    sprintf(path, "%s/%s", dir, file_name);
+
+                                    //se la directory non esiste essa viene creata
+                                    mkdir(dir, S_IRWXU);
+                                    //se il file non esiste esso viene creato
+                                    FILE *of;
+                                    of = fopen(path, "w");
+                                    if (of == NULL) {
+                                        if (flag_stampa == 1)
+                                            printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                        perror("ERRORE: salvataggio del file\n");
+                                    } else {
+                                        fprintf(of, "%s", buf);
+                                        fclose(of);
+                                    }
+                                }
                             }
+                            printf("\n ci sono arrivato vivo\n");
+                            if (closeFile(resolvedPath) == -1) {
+                                if (flag_stampa == 1)
+                                    printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                perror("ERRORE: chiusura file");
+                            } else {
+                                if (flag_stampa == 1)
+                                    printf("OP: -r (leggi file) File : %s Dimensione Letta: %lu Esito : successo\n",
+                                           file,
+                                           strnlen(buf, MAX_CNT_LEN));
+                            }
+                            free(buf);
                         }
+                        printf("\nforzaaaa\n");
+                        token3 = strtok_r(NULL, ",", &save3);
+                        printf("\nn avrò pure fallito ma avanzo ancora\n");
                     }
-                    if (closeFile(file)==-1)
-                    {
-                        if (flag_stampa==1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n",file);
-                        perror("ERRORE: chiusura file");
+                    else {
+                        if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
+                        printf("ERRORE: %s non e' un file regolare\n", file);
                     }
-                    else
-                    {
-                        if (flag_stampa==1) printf("OP: -r (leggi file) File : %s Dimensione Letta: %lu Esito : successo\n",file,
-                                                   strnlen(buf,MAX_CNT_LEN));
-                    }
-                    free(buf);
                 }
-                token3 = strtok_r(NULL,",",&save3);
+                token3 = strtok_r(NULL, ",", &save3);
             }
-            if (token3!=NULL) free(token3);
+            //if (token3!=NULL) free(token3);
         }
         else if (strcmp(curr->cmd,"R")==0)
         {

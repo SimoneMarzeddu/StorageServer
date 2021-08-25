@@ -574,8 +574,8 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
         return 0;
     }
 }
-int readFile(const char* path, void** buf, size_t* size) {
-
+int readFile(const char* path, void** buf, size_t* size)
+{
     if (c_state == 0)
     {
         errno = ENOTCONN;
@@ -583,10 +583,11 @@ int readFile(const char* path, void** buf, size_t* size) {
     }
     if(*buf == NULL)
     {
+        printf("\ncaso\n");
         errno = EINVAL;
         return -1;
     }
-
+    printf("\n API: read \n");
     char buffer [MSG_SIZE];
     memset(buffer,0,MSG_SIZE);
     sprintf(buffer, "readFile;%s;",path);
