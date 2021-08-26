@@ -62,51 +62,67 @@ int compareTime(struct timespec a, struct timespec b){
     else
         return -1;
 }
-/* Read "n" bytes from a descriptor. */
-ssize_t readn(int fd, void *vptr, size_t n)
-{
-    size_t  nleft;
-    ssize_t nread;
-    char   *ptr;
+/**
+ *   @brief Funzione che permette di fare la read in modo che, se è interrotta da un segnale, riprende
+ *
+ *   @param fd     descrittore della connessione
+ *   @param msg    puntatore al messaggio da inviare
+ *
+ *   @return Il numero di bytes letti, -1 se c'e' stato un errore
+ */
+int readn(long fd, void *buf, size_t size) {
+    int readn = 0, r = 0;
 
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0)
-    {
-        if ( (nread = read(fd, ptr, nleft)) < 0)
-        {
-            if (errno == EINTR) nread = 0; /* and call read() again */
-            else return (-1);
+    while ( readn < size ){
+
+        if ( (r = read(fd, buf, size)) == -1 ){
+            if( errno == EINTR )
+                // se la read è stata interrotta da un segnale riprende
+                continue;
+            else{
+                perror("Readn");
+                return -1;
+            }
         }
-        else
-        if (nread == 0) break;  /* EOF */
-        nleft -= nread;
-        ptr += nread;
+        if ( r == 0 )
+            return readn; // Nessun byte da leggere rimasto
+
+        readn += r;
     }
-    return (n - nleft);         /* return >= 0 */
+
+    return readn;
 }
 
-/* Write "n" bytes to a descriptor. */
-ssize_t writen(int fd, const void *vptr, size_t n)
-{
-    size_t nleft;
-    ssize_t nwritten;
-    const char *ptr;
+/**
+ *   @brief Funzione che permette di fare la write in modo che, se è interrotta da un segnale, riprende
+ *
+ *   @param fd     descrittore della connessione
+ *   @param msg    puntatore al messaggio da inviare
+ *
+ *   @return Il numero di bytes scritti, -1 se c'è stato un errore
+ */
+int writen(long fd, const void *buf, size_t nbyte){
+    int writen = 0, w = 0;
 
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0)
-    {
-        if ( (nwritten = write(fd, ptr, nleft)) <= 0)
-        {
-            if (nwritten < 0 && errno == EINTR) nwritten = 0;   /* and call write() again */
-            else return (-1);    /* error */
+    while ( writen < nbyte ){
+        if ( (w = write(fd, buf, nbyte) ) == -1 ){
+            /* se la write è stata interrotta da un segnale riprende */
+            if ( errno == EINTR )
+                continue;
+            else if ( errno == EPIPE )
+                break;
+            else{
+                perror("Writen");
+                return -1;
+            }
         }
+        if( w == 0 )
+            return writen;
 
-        nleft -= nwritten;
-        ptr += nwritten;
+        writen += w;;
     }
-    return (n);
+
+    return writen;
 }
 
 /*
@@ -169,6 +185,17 @@ int closeConnection(const char* nome_sock)
 
     if (strcmp(sck_name,nome_sock) == 0)
     {// il socket a cui il client è connesso corrisponde a quello parametro
+        char* save = NULL;
+        char buffer [MSG_SIZE];
+        memset(buffer,0,MSG_SIZE);
+        snprintf(buffer, MSG_SIZE,"disconnect");// il comando viene scritto sulla stringa buffer
+
+        if(writen(fd_s, buffer, MSG_SIZE) == -1)// il comando viene scritto nel canale con il server
+        {
+            errno = EREMOTEIO;
+            return -1;
+        }
+
         if (close(fd_s) == -1) // la connessione viene effettivamente chiusa
         {
             errno = EREMOTEIO;
@@ -736,4 +763,4 @@ int readNFiles(int N, const char* dir)
     return file_N;
 }
 
-// UPDATE: 22/08 pomeriggio 2 fine client
+// UPDATE: TEST 1 SUCCESSO

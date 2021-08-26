@@ -489,7 +489,7 @@ static fifo_node* fifo_node_init (char* path)
 static void fifo_node_free (fifo_node* node1)
 {
     if (node1 == NULL) return;
-    //free(node1->path);
+    free(node1->path);
     free(node1);
 
     return;
@@ -1215,57 +1215,67 @@ static int max_up (fd_set set, int fdmax)
     return -1;
 }
 
-/* Read "n" bytes from a descriptor. */
-ssize_t readn(int fd, void *vptr, size_t n)
-{
-    size_t  nleft;
-    ssize_t nread;
-    char   *ptr;
+/**
+ *   @brief Funzione che permette di fare la read in modo che, se è interrotta da un segnale, riprende
+ *
+ *   @param fd     descrittore della connessione
+ *   @param msg    puntatore al messaggio da inviare
+ *
+ *   @return Il numero di bytes letti, -1 se c'e' stato un errore
+ */
+int readn(long fd, void *buf, size_t size) {
+    int readn = 0, r = 0;
 
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0)
-    {
-         if ( (nread = read(fd, ptr, nleft)) < 0)
-         {
-             if (errno == EINTR) nread = 0; /* and call read() again */
-             else return (-1);
-         }
-         else
-         {
-             if (nread == 0) break;  /* EOF */
+    while ( readn < size ){
 
-         }
+        if ( (r = read(fd, buf, size)) == -1 ){
+            if( errno == EINTR )
+                // se la read è stata interrotta da un segnale riprende
+                continue;
+            else{
+                perror("Readn");
+                return -1;
+            }
+        }
+        if ( r == 0 )
+            return readn; // Nessun byte da leggere rimasto
 
-         nleft -= nread;
-         if (nleft == 0) break;
-         ptr += nread;
+        readn += r;
     }
-    //printf("\n READ restituisco: %s\n",ptr);
-    return (n - nleft);         /* return >= 0 */
+
+    return readn;
 }
 
-/* Write "n" bytes to a descriptor. */
-ssize_t writen(int fd, const void *vptr, size_t n)
-{
-    size_t nleft;
-    ssize_t nwritten;
-    const char *ptr;
+/**
+ *   @brief Funzione che permette di fare la write in modo che, se è interrotta da un segnale, riprende
+ *
+ *   @param fd     descrittore della connessione
+ *   @param msg    puntatore al messaggio da inviare
+ *
+ *   @return Il numero di bytes scritti, -1 se c'è stato un errore
+ */
+int writen(long fd, const void *buf, size_t nbyte){
+    int writen = 0, w = 0;
 
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0)
-    {
-        if ( (nwritten = write(fd, ptr, nleft)) <= 0)
-        {
-            if (nwritten < 0 && errno == EINTR) nwritten = 0;   /* and call write() again */
-            else return (-1);    /* error */
+    while ( writen < nbyte ){
+        if ( (w = write(fd, buf, nbyte) ) == -1 ){
+            /* se la write è stata interrotta da un segnale riprende */
+            if ( errno == EINTR )
+                continue;
+            else if ( errno == EPIPE )
+                break;
+            else{
+                perror("Writen");
+                return -1;
+            }
         }
+        if( w == 0 )
+            return writen;
 
-        nleft -= nwritten;
-        ptr += nwritten;
+        writen += w;
     }
-    return (n);
+
+    return writen;
 }
 
 /* open_FILE : FLAGS
@@ -1838,12 +1848,14 @@ static int remove_File (char* path, size_t c_pid)
 
     if (tmp->lock_owner == c_pid)
     {
-        if (hash_rem_file2(storage,path) == NULL)
+        file* dummy = hash_rem_file2(storage,path);
+        if (dummy == NULL)
         {
             Pthread_mutex_unlock(&(tmp_lst->mtx));
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
+        file_free(dummy);
         return 0;
     }
     else
@@ -1855,7 +1867,7 @@ static int remove_File (char* path, size_t c_pid)
 
 }
 //STRUTTURA DI QUEST: FUN_NAME;ARG1;ARG2;...
-static void do_a_Job (char* quest, int fd_c, int fd_pipe)
+static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
 {
     if (quest == NULL || fd_c < 1 || fd_pipe < 1)
     {
@@ -1867,19 +1879,18 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
     memset(out,0,MSG_SIZE);
     char* token = NULL;
     char* save = NULL;
-    int end = 0;
 
     token = strtok_r(quest,";",&save);// il token contiene un'operazione che è stata richiesta al server || NULL
     if (token == NULL) // tutte le richieste sono state esaudite
     {
         hash_lo_reset(storage,fd_c);
-        end = -1;
+        *end = 1;
         if (write(fd_pipe, &fd_c, sizeof(fd_c)) == -1)
         {
             perror("Worker : scrittura nella pipe");
             exit(EXIT_FAILURE);
         }
-        if (write(fd_pipe, &end, sizeof(end)) == -1)
+        if (write(fd_pipe, end, sizeof(*end)) == -1)
         {
             perror("Worker : scrittura nella pipe");
             exit(EXIT_FAILURE);
@@ -1918,9 +1929,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             return;
         }
 
@@ -1959,9 +1970,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         }
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             return;
         }
 
@@ -2002,9 +2013,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             return;
         }
 
@@ -2045,9 +2056,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             return;
         }
 
@@ -2087,9 +2098,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             return;
         }
 
@@ -2135,9 +2146,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2146,9 +2157,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (readn(fd_c,bck,MSG_SIZE) == -1)
         {
             perror("Worker : lettura dal socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2169,9 +2180,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (writen(fd_c,out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MSG_SIZE + 1) == -1)
             {
                 perror("Worker : scrittura nel socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2179,9 +2190,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (readn(fd_c,bck,MSG_SIZE) == -1)
             {
                 perror("Worker : lettura dal socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2232,9 +2243,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2243,9 +2254,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (readn(fd_c,bck,MSG_SIZE) == -1)
         {
             perror("Worker : lettura dal socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2266,9 +2277,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (writen(fd_c,out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MSG_SIZE + 1) == -1)
             {
                 perror("Worker : scrittura nel socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2276,9 +2287,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (readn(fd_c,bck,MSG_SIZE) == -1)
             {
                 perror("Worker : lettura dal socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2336,9 +2347,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             free(buf);
             return;
         }
@@ -2383,9 +2394,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            write(fd_pipe,end,sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2393,9 +2404,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         char bck[MSG_SIZE];
         if (readn(fd_c, bck, MSG_SIZE) == -1) {
             perror("Worker : lettura dal socket");
-            end = -1;
+            *end = 1;
             write(fd_pipe, &fd_c, sizeof(fd_c));
-            write(fd_pipe, &end, sizeof(end));
+            write(fd_pipe, end, sizeof(*end));
             f_list_free(tmp);
             return;
         }
@@ -2410,9 +2421,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (writen(fd_c,readN_out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MAX_CNT_LEN + 1) == -1)
             {
                 perror("Worker : scrittura nel socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2420,9 +2431,9 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             if (readn(fd_c,bck,MSG_SIZE) == -1)
             {
                 perror("Worker : lettura dal socket");
-                end = -1;
+                *end = 1;
                 write(fd_pipe,&fd_c,sizeof(fd_c));
-                write(fd_pipe,&end,sizeof(end));
+                write(fd_pipe,end,sizeof(*end));
                 f_list_free(tmp);
                 return;
             }
@@ -2451,15 +2462,38 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         f_list_free(tmp);
     }
     else
+    if (strcmp(token,"disconnect")==0)
+    {// il client è disconnesso, il worker attenderà il prossimo
+        *end = 1;
+        if (write(fd_pipe, &fd_c, sizeof(fd_c)) == -1)
+        {
+            perror("Worker : scrittura nella pipe");
+            exit(EXIT_FAILURE);
+        }
+        if (write(fd_pipe, end, sizeof(*end)) == -1)
+        {
+            perror("Worker : scrittura nella pipe");
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
     {
         // funzione non implementata <-> ENOSYS
         sprintf(out,"-1;%d",ENOSYS);
         if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
-            end = -1;
-            write(fd_pipe,&fd_c,sizeof(fd_c));
-            write(fd_pipe,&end,sizeof(end));
+            *end = 1;
+            if (write(fd_pipe, &fd_c, sizeof(fd_c)) == -1)
+            {
+                perror("Worker : scrittura nella pipe");
+                exit(EXIT_FAILURE);
+            }
+            if (write(fd_pipe, end, sizeof(*end)) == -1)
+            {
+                perror("Worker : scrittura nella pipe");
+                exit(EXIT_FAILURE);
+            }
             return;
         }
     }
@@ -2508,7 +2542,7 @@ static void* w_routine (void* arg)
             }
             else
             {// richiesta del client ricevuta correttamente
-                if (len != 0) do_a_Job(quest, fd_c, fd_pipe);
+                if (len != 0) do_a_Job(quest, fd_c, fd_pipe, &end);
             }
         }
     }
@@ -2836,7 +2870,7 @@ int main(int argc, char* argv[])
                                 perror("errore nel dialogo Master/Worker");
                                 exit(EXIT_FAILURE);
                             }
-                            if (flag == -1)
+                            if (flag == 1)
                             {//il client è terminato, il suo fd deve essere rimosso dal set
                                 printf("Chiusura della connessione\n");
                                 FD_CLR(fd_c1,&set);//rimozione del fd del client termianto dal set
@@ -2846,7 +2880,7 @@ int main(int argc, char* argv[])
                                 if (t==2 && currconnections_no==0)
                                 {
                                     printf("Terminazione Soft\n");
-                                    //t_soft = 1;
+                                    t_soft = 1;
                                     break;
                                 }
                             }
@@ -2937,4 +2971,4 @@ int main(int argc, char* argv[])
 
 }
 
-// UPDATE: 22/08 pomeriggio 2 fine client
+// UPDATE: TEST 1 SUCCESSO

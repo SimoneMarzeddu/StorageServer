@@ -34,8 +34,8 @@ cleanall :
 
 #primo test
 test1 : $(TARGETS)
-	chmod +x test1.sh
-	./test1.sh &
+	chmod +x ./script/test1.sh
+	./script/test1.sh &
 
 #secondo test
 test2 : $(TARGETS)
