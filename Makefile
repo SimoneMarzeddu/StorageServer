@@ -34,7 +34,6 @@ cleanall :
 
 #primo test
 test1 : $(TARGETS)
-	valgrind --leak-check=full ./server -cnfg Test1/config1.txt &
 	chmod +x test1.sh
 	./test1.sh &
 

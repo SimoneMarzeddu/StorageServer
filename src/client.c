@@ -424,20 +424,23 @@ int main (int argc, char * argv[])
 
     // controlli per la presenza delle opzioni non ripetibili: -h -p -f
     char* arg=NULL;
-    if (containCMD(&listCmd,"h",&arg) == 1)
-    {
-        printf("OPERAZIONI SUPPORTATE: \n");
-        printf("-h\n-f filename\n-w dirname[,n=0]\n-W file1[,file2]\n");
-        printf("-D dirname\n-r file1[,file2]\n-R [n=0]\n-d dirname\n-t time\n");
-        printf("-l file1[,file2]\n-u file1[,file2]\n-c file1[,file2]\n-p\n");
-        freeList(&listCmd);
-        if (resolvedPath!=NULL) free(resolvedPath);
-        return 0;// il processo termina immediatamente dopo la stampa
-    }
     if (containCMD(&listCmd,"p",&arg) == 1)
     {
         flag_stampa = 1;
         printf("OP : -p (abilta stampe) Esito : successo\n");
+        msSleep(tms); // attesa tra due operazioni consecutive
+    }
+    if (containCMD(&listCmd,"h",&arg) == 1)
+    {
+
+        printf("OPERAZIONI SUPPORTATE: \n");
+        printf("-h\n-f filename\n-w dirname[,n=0]\n-W file1[,file2]\n");
+        printf("-D dirname\n-r file1[,file2]\n-R [n=0]\n-d dirname\n-t time\n");
+        printf("-l file1[,file2]\n-u file1[,file2]\n-c file1[,file2]\n-p\n");
+        if (flag_stampa==1) printf("OP : -h (aiuto) Esito : successo\n");
+        freeList(&listCmd);
+        if (resolvedPath!=NULL) free(resolvedPath);
+        return 0;// il processo termina immediatamente dopo la stampa
     }
     if (containCMD(&listCmd,"f",&arg) == 1)
     {
@@ -454,13 +457,14 @@ int main (int argc, char * argv[])
         {
             if (flag_stampa==1) printf("OP : -f (connessione) File : %s Esito : successo\n",farg);
         }
+        msSleep(tms); // attesa tra due operazioni consecutive
     }
 
     // le operazioni restanti verranno ora eseguite: -w -W -D -r -R -d -t -l -u -c
     node * curr = listCmd;
     while (curr!=NULL)
     {
-        msSleep(tms); // attesa tra due operazioni consecutive
+
         if (strcmp(curr->cmd,"w") == 0)
         {
             Dir = NULL;
@@ -650,7 +654,7 @@ int main (int argc, char * argv[])
 
                         if (openFile(resolvedPath, 0) == -1)
                         {
-                            if (flag_stampa == 1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                            if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
                             perror("ERRORE: apertura del file");
                         }
                         else
@@ -760,12 +764,26 @@ int main (int argc, char * argv[])
                 char * file = token4;
 
                 //per ogni file passato come argomento sarà eseguita remove
-                if (removeFile(file)==-1)
+                if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
-                    if (flag_stampa==1) printf("OP : -c (rimuovi file) File : %s Esito : fallimento\n",file);
-                    perror("ERRORE: rimozione del file");
-                }else{
-                    if (flag_stampa==1) printf("OP : -c (rimuovi file) File : %s Esito : successo\n",file);
+                    if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
+                    printf("ERRORE: Il file %s non esiste\n", file);
+                } else {
+                    struct stat info_file;
+                    stat(resolvedPath, &info_file);
+
+                    if (S_ISREG(info_file.st_mode))//per ogni file passato come argomento sarà eseguita lock
+                        if (removeFile(resolvedPath)==-1)
+                        {
+                            if (flag_stampa==1) printf("OP : -c (rimuovi file) File : %s Esito : fallimento\n",file);
+                            perror("ERRORE: lock del file");
+                        }else{
+                            if (flag_stampa==1) printf("OP : -c (rimuovi file) File : %s Esito : successo\n",file);
+                        }
+                    else {
+                        if (flag_stampa == 1) printf("OP : -c (rimuovi file) File : %s Esito : fallimento\n", file);
+                        printf("ERRORE: %s non e' un file regolare\n", file);
+                    }
                 }
 
                 token4 = strtok_r(NULL,",",&save4);
@@ -781,13 +799,26 @@ int main (int argc, char * argv[])
             {
                 char * file = token4;
 
-                //per ogni file passato come argomento sarà eseguita lock
-                if (lockFile(file)==-1)
+                if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
-                    if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n",file);
-                    perror("ERRORE: lock del file");
-                }else{
-                    if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : successo\n",file);
+                    if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
+                    printf("ERRORE: Il file %s non esiste\n", file);
+                } else {
+                    struct stat info_file;
+                    stat(resolvedPath, &info_file);
+
+                    if (S_ISREG(info_file.st_mode))//per ogni file passato come argomento sarà eseguita lock
+                        if (lockFile(resolvedPath)==-1)
+                        {
+                            if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n",file);
+                            perror("ERRORE: lock del file");
+                        }else{
+                            if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : successo\n",file);
+                        }
+                    else {
+                        if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
+                        printf("ERRORE: %s non e' un file regolare\n", file);
+                    }
                 }
 
                 token4 = strtok_r(NULL,",",&save4);
@@ -803,12 +834,26 @@ int main (int argc, char * argv[])
                 char * file = token4;
 
                 //per ogni file passato come argomento sarà eseguita unlock
-                if (unlockFile(file)==-1)
+                if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
-                    if (flag_stampa==1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : fallimento\n",file);
-                    perror("ERRORE: unlock del file");
-                }else{
-                    if (flag_stampa==1) printf("OP : -u (rilascia la mutua esclusione sul file file) File : %s Esito : successo\n",file);
+                    if (flag_stampa == 1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
+                    printf("ERRORE: Il file %s non esiste\n", file);
+                } else {
+                    struct stat info_file;
+                    stat(resolvedPath, &info_file);
+
+                    if (S_ISREG(info_file.st_mode))//per ogni file passato come argomento sarà eseguita lock
+                        if (unlockFile(resolvedPath)==-1)
+                        {
+                            if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n",file);
+                            perror("ERRORE: lock del file");
+                        }else{
+                            if (flag_stampa==1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : successo\n",file);
+                        }
+                    else {
+                        if (flag_stampa == 1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
+                        printf("ERRORE: %s non e' un file regolare\n", file);
+                    }
                 }
 
                 token4 = strtok_r(NULL,",",&save4);
@@ -833,6 +878,7 @@ int main (int argc, char * argv[])
             }
         }
 
+        msSleep(tms); // attesa tra due operazioni consecutive
         curr = curr->next;
     }
 

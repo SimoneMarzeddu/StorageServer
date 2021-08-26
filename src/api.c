@@ -323,7 +323,6 @@ int lockFile(const char* path)
         return -1;
     }
 
-
     char* token;
     char* save = NULL;
     token = strtok_r(message, ";", &save);

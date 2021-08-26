@@ -114,6 +114,7 @@ volatile sig_atomic_t t = 0; // variabile settata dal signal handler
 pthread_mutex_t stats_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sugli accessi alle var. per stats.
 
 static size_t max_size_reached = 0;    // dimensione massima dello storage raggiunta
+static size_t max_size_reachedMB = 0;    // dimensione massima dello storage raggiunta in MB
 static size_t max_no_reached = 0;      // numero massimo di files nello storage reggiunto
 static size_t replace_no = 0;
 static size_t replace_alg_no = 0;
@@ -475,7 +476,13 @@ static fifo_node* fifo_node_init (char* path)
     }
     tmp->next = NULL;
     tmp->prec = NULL;
-    tmp->path = path;
+    tmp->path = malloc(sizeof(char)*UNIX_MAX_STANDARD_FILENAME_LENGHT);
+    if(tmp->path == NULL)
+    {
+        errno = ENOMEM;
+        return NULL;
+    }
+    strcpy(tmp->path,path);
 
     return tmp;
 }
@@ -955,6 +962,7 @@ static int hash_add_file (hash* tbl, file* file1)
             Pthread_mutex_lock(&stats_mtx);
             curr_no++;
             curr_size = curr_size + strlen(file1->cnt);
+            if(curr_size > max_size_reached) max_size_reached = curr_size;
             Pthread_mutex_unlock(&stats_mtx);
             return 1;
         }
@@ -1103,10 +1111,12 @@ static f_list* hash_replace (hash* tbl, char* path, size_t c_pid)
         return NULL;
     }
 
+    int bool = 0;
     fifo_node* p_kill_ff = NULL;
 
     while (curr_size > max_size)
     {
+        bool = 1;
         if (p_kill_ff == NULL) p_kill_ff = queue->tail;
         if (p_kill_ff == NULL)
         {
@@ -1150,7 +1160,8 @@ static f_list* hash_replace (hash* tbl, char* path, size_t c_pid)
     }
 
     Pthread_mutex_lock(&stats_mtx);
-    replace_alg_no++;
+    if (bool == 1) replace_alg_no++;
+    if (curr_size > max_size_reached) max_size_reached = curr_size;
     Pthread_mutex_unlock(&stats_mtx);
     return replaced;
 }
@@ -1634,6 +1645,7 @@ static f_list* write_File (char* path, char* cnt, size_t c_pid)
     Pthread_mutex_unlock(&stats_mtx);
 
     f_list* out = hash_replace(storage,path,c_pid);
+
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     return out;
 
@@ -1717,29 +1729,20 @@ static int lock_File (char* path, size_t c_pid)
     f_list* tmp_lst = hash_get_list(storage,path);
     if(tmp_lst == NULL) return -1;
 
-    if (tmp->op)
+    Pthread_mutex_lock(&(tmp_lst->mtx));
+    tmp->lock_owner = c_pid;
+
+    Pthread_mutex_lock(&stats_mtx);
+    lock_no++;
+    Pthread_mutex_unlock(&stats_mtx);
+
+    if(c_list_rem_node(tmp->whoop,c_pid) == -1)
     {
-        Pthread_mutex_lock(&(tmp_lst->mtx));
-        tmp->lock_owner = c_pid;
-
-        Pthread_mutex_lock(&stats_mtx);
-        lock_no++;
-        Pthread_mutex_unlock(&stats_mtx);
-
-        if(c_list_rem_node(tmp->whoop,c_pid) == -1)
-        {
-            Pthread_mutex_unlock(&(tmp_lst->mtx));
-            return -1;
-        }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        return 0;
-    }
-    else
-    {
-        errno = EPERM;
         return -1;
     }
-
+    Pthread_mutex_unlock(&(tmp_lst->mtx));
+    return 0;
 }
 static int unlock_File (char* path, size_t c_pid)
 {
@@ -1755,7 +1758,7 @@ static int unlock_File (char* path, size_t c_pid)
     f_list* tmp_lst = hash_get_list(storage,path);
     if (tmp_lst == NULL) return -1;
 
-    if (tmp->op && tmp->lock_owner == c_pid)
+    if (tmp->lock_owner == c_pid)
     {
         Pthread_mutex_lock(&(tmp_lst->mtx));
         tmp->lock_owner = 0;
@@ -1833,7 +1836,7 @@ static int remove_File (char* path, size_t c_pid)
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
 
-    if (tmp->op && tmp->lock_owner == c_pid)
+    if (tmp->lock_owner == c_pid)
     {
         if (hash_rem_file2(storage,path) == NULL)
         {
@@ -2039,7 +2042,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
             log_res = 1;
             sprintf(out,"0");
         }
-        if (writen(fd_c,out,MSG_SIZE))
+        if (writen(fd_c,out,MSG_SIZE) == -1)
         {
             perror("Worker : scrittura nel socket");
             end = -1;
@@ -2901,7 +2904,7 @@ int main(int argc, char* argv[])
     {
         media_read_size = (float) total_read_size/read_no;
         media_write_size = (float) total_write_size/write_no;
-        max_size_reached = (float) max_size_reached/(1024*1024);
+        max_size_reachedMB = (float) max_size_reached/(1024*1024);
 
     } // elaborazioni per il file delle statistiche
 
@@ -2915,7 +2918,8 @@ int main(int argc, char* argv[])
     {
         printf("SERVER INFO:\n");
         printf("Numero Massimo di files raggiunto: %lu\n", max_no_reached);
-        printf("Dimensione Massima raggiunta dallo storage in MByte: %lu\n", max_size_reached);
+        printf("Dimensione Massima raggiunta dallo storage in MByte: %lu\n", max_size_reachedMB);
+        printf("Dimensione Massima raggiunta dallo storage in Byte: %lu\n", max_size_reached);
         printf("Dimensione media delle read effettuate: %lu\n", media_read_size);
         printf("Dimensione media delle write effettuate: %lu\n", media_write_size);
         printf("Numero di Replace eseguite: %lu\n\n", replace_alg_no);
