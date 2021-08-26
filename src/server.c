@@ -442,7 +442,7 @@ static file* file_copy (file* file1)
     copy->prec = NULL;
     copy->whoop = NULL;
     copy->lock_owner = file1->lock_owner;
-    copy->path = malloc(sizeof(char)*path_len);
+    copy->path = malloc(sizeof(char)*(path_len+1));
     if (copy->path == NULL)
     {
         errno = ENOMEM;
@@ -451,7 +451,7 @@ static file* file_copy (file* file1)
     }
     strcpy(copy->path,file1->path);
 
-    copy->cnt = malloc(sizeof(char)*cnt_len);
+    copy->cnt = malloc(sizeof(char)*(cnt_len+1));
     if (copy->cnt == NULL)
     {
         errno = ENOMEM;
@@ -775,7 +775,6 @@ static int f_list_cont_file (f_list* lst, char* path)
         cursor = cursor->next;
     }
 
-    errno = ENOENT;
     return 0;
 }
 static int f_list_add_head (f_list* lst, file* file1)
@@ -1513,7 +1512,8 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
 
             while(cursor != NULL)
             {
-                if(cursor->op == 1 && (cursor->lock_owner == 0 || cursor->lock_owner == c_pid))
+                //anche i files chiusi possno essere letti, ma questo non vale per i files lockati
+                if(cursor->lock_owner == 0 || cursor->lock_owner == c_pid)
                 {
                     file* copy = file_copy(cursor);
                     if(copy == NULL) return NULL;
@@ -1538,8 +1538,8 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
             Pthread_mutex_lock(&storage->lists[i]->mtx);
 
             while(cursor != NULL && pkd<N)
-            {
-                if (cursor->op == 1 && (cursor->lock_owner == 0 || cursor->lock_owner == c_pid))
+            {//anche i files chiusi possno essere letti, ma questo non vale per i files lockati
+                if (cursor->lock_owner == 0 || cursor->lock_owner == c_pid)
                 {
                     file* copy = file_copy(cursor);
                     if(copy == NULL)
@@ -2401,9 +2401,10 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
 
         while (true_bck == 1 && cursor != NULL)
         {
-            sprintf(out,"%s;%s",cursor->path,cursor->cnt);
-
-            if (writen(fd_c,out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MSG_SIZE + 1) == -1)
+            char readN_out[UNIX_MAX_STANDARD_FILENAME_LENGHT + MAX_CNT_LEN + 1];
+            memset(readN_out,0,UNIX_MAX_STANDARD_FILENAME_LENGHT + MAX_CNT_LEN + 1);
+            sprintf(readN_out,"%s;%s",cursor->path,cursor->cnt);
+            if (writen(fd_c,readN_out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MAX_CNT_LEN + 1) == -1)
             {
                 perror("Worker : scrittura nel socket");
                 end = -1;
@@ -2423,6 +2424,8 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
                 return;
             }
             true_bck = (int)strtol(bck, NULL, 10);
+
+            cursor = cursor->next;
         }
 
         // UPDATE DEL FILE DI LOG

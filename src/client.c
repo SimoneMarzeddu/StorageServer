@@ -726,6 +726,7 @@ int main (int argc, char * argv[])
             else
             {
                 int n;
+
                 if ((n = readNFiles(N,dir))==-1)
                 {
                     if (flag_stampa==1) printf("OP : -R (leggi N file) Esito : fallimento\n");
@@ -735,8 +736,8 @@ int main (int argc, char * argv[])
                 {
                     if (flag_stampa==1) printf("OP : -R (leggi N file) File Letti : %d Dimensione Letta: %lu Esito : successo \n",n,get_last_rN_size());
                 }
-            }
 
+            }
         }
         else if (strcmp(curr->cmd,"d") == 0)
         {

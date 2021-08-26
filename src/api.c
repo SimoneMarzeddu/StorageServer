@@ -661,7 +661,6 @@ int readNFiles(int N, const char* dir)
         errno = EREMOTEIO;
         return -1;
     }
-
     char* save = NULL;
     char* token = strtok_r(message,";",&save);
     if (strcmp(token,"-1") == 0)
@@ -686,9 +685,9 @@ int readNFiles(int N, const char* dir)
         }
 
         //lettura di un file
-        char readed [UNIX_MAX_STANDARD_FILENAME_LENGHT];
-        memset(readed,0,UNIX_MAX_STANDARD_FILENAME_LENGHT);
-        if (readn(fd_s,readed,MSG_SIZE+UNIX_MAX_STANDARD_FILENAME_LENGHT+1) == -1)
+        char readed [MAX_CNT_LEN+UNIX_MAX_STANDARD_FILENAME_LENGHT+1];
+        memset(readed,0,MAX_CNT_LEN+UNIX_MAX_STANDARD_FILENAME_LENGHT+1);
+        if (readn(fd_s,readed,MAX_CNT_LEN+UNIX_MAX_STANDARD_FILENAME_LENGHT+1) == -1)
         {
             errno = EREMOTEIO;
             return -1;
@@ -727,6 +726,12 @@ int readNFiles(int N, const char* dir)
                 fclose(true_file);
             }
         }
+    }
+    // la api notifica al server che non vi saranno altre letture per questa operazione
+    if (writen(fd_s,"0;",MSG_SIZE) == -1)
+    {
+        errno = EREMOTEIO;
+        return -1;
     }
     // printf("Operazione Completata : readNFile\n");
     return file_N;
