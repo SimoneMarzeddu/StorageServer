@@ -581,13 +581,13 @@ int readFile(const char* path, void** buf, size_t* size)
         errno = ENOTCONN;
         return -1;
     }
-    if(*buf == NULL)
+    /*
+    if(buf[0] == NULL)
     {
-        printf("\ncaso\n");
         errno = EINVAL;
         return -1;
     }
-    printf("\n API: read \n");
+*/
     char buffer [MSG_SIZE];
     memset(buffer,0,MSG_SIZE);
     sprintf(buffer, "readFile;%s;",path);
@@ -606,6 +606,7 @@ int readFile(const char* path, void** buf, size_t* size)
     char* token;
     char* save = NULL;
     token = strtok_r(message, ";", &save);
+
     if (strcmp(token, "-1") == 0)
     {
         token = strtok_r(NULL, ";",&save);
@@ -613,11 +614,18 @@ int readFile(const char* path, void** buf, size_t* size)
         return -1;
     }else
     {
-        strcpy((char *) buf[0], token);
+        char* pass_cnt = malloc(sizeof(char)*MAX_CNT_LEN);
+        if (pass_cnt == NULL)
+        {
+            free(pass_cnt);
+            errno = ENOMEM;
+            return -1;
+        }
+        strcpy(pass_cnt, token);
         token = strtok_r(NULL, ";", &save);
         size_t sizeFile = (int) strtol(token, NULL, 10);
         *size = sizeFile;
-        // printf("Operazione Completata : readFile\n");
+        *buf = (void*) pass_cnt;
         return 0;
     }
 }

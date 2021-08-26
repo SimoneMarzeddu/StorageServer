@@ -8,7 +8,7 @@ spid=$! #pid del processo più recente
 # fine parte makefile
 
 echo "ATTESA : Avvio del Server"
-sleep 5 #attesa post avvio server
+sleep 2 #attesa post avvio server
 
 ./client -h  #l'opzione -h farà terminare il client, la testo separatamente
 

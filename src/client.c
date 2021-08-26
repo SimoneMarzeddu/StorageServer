@@ -233,7 +233,8 @@ void addLast (node** lst, char* cmd, char* arg)
     {
         if (curr->arg != NULL)
         {
-            *arg = malloc(sizeof(curr->arg));
+            //*arg = malloc(sizeof(curr->arg));
+            *arg = malloc(sizeof(char)*(strlen(curr->arg)+1));
             strcpy(*arg,curr->arg);
         }
         else *arg = NULL;
@@ -596,6 +597,7 @@ int main (int argc, char * argv[])
                                 }
                             }
                             if (resolvedPath!=NULL) free(resolvedPath);
+                            resolvedPath = NULL;
                         }
                         else
                         {
@@ -653,7 +655,7 @@ int main (int argc, char * argv[])
                         }
                         else
                         {//READ FILE
-                            char buf[MSG_SIZE];
+                            char* buf = NULL;
                             size_t size;
                             if (readFile(resolvedPath, (void **) &buf, &size) == -1)
                             {
@@ -684,7 +686,6 @@ int main (int argc, char * argv[])
                                     }
                                 }
                             }
-                            printf("\n ci sono arrivato vivo\n");
                             if (closeFile(resolvedPath) == -1) {
                                 if (flag_stampa == 1)
                                     printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
@@ -697,9 +698,7 @@ int main (int argc, char * argv[])
                             }
                             free(buf);
                         }
-                        printf("\nforzaaaa\n");
                         token3 = strtok_r(NULL, ",", &save3);
-                        printf("\nn avrò pure fallito ma avanzo ancora\n");
                     }
                     else {
                         if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);

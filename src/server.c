@@ -482,7 +482,7 @@ static fifo_node* fifo_node_init (char* path)
 static void fifo_node_free (fifo_node* node1)
 {
     if (node1 == NULL) return;
-    free(node1->path);
+    //free(node1->path);
     free(node1);
 
     return;
@@ -1455,22 +1455,12 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
 
     if (hash_cont_file(storage,path))
     {
-        buf = NULL;
-
         if (tmp->lock_owner == 0 || tmp->lock_owner == c_pid)
         {
             *size = strlen((char*)tmp->cnt);
-            buf = malloc(sizeof(char) * MAX_CNT_LEN);
-            if (buf == NULL)
-            {
-                errno = ENOMEM;
-                free(buf);
-                return -1;
-            }
 
             strcpy(buf, tmp->cnt);
 
-            printf("\n il peggio è passato\n");
             Pthread_mutex_lock(&stats_mtx);
             read_no++;
             total_read_size = total_read_size + (*size);
@@ -2316,7 +2306,14 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe)
         size_t c_pid = (size_t) atoi(token);
          */
 
-        char* buf = NULL;
+        char* buf = malloc(sizeof(char)*MAX_CNT_LEN);
+        if (buf == NULL)
+        {
+            errno = ENOMEM;
+            free(buf);
+            return -1;
+        }
+
         size_t size;
 
         int res = read_File(path,buf,&size,fd_c);
