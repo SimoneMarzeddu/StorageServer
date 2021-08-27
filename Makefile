@@ -2,7 +2,7 @@ CC 			= gcc
 CFLAGS		= -g -Wall
 TARGETS		= server client
 
-.PHONY: all clean cleanall test1 test2 test2var
+.PHONY: all clean cleanall test1 test2 test2var test3
 
 #genera tutti gli eseguibili
 all : $(TARGETS)
@@ -52,7 +52,6 @@ test2var : $(TARGETS)
 #secondo test
 test3 : $(TARGETS)
 	chmod +x ./script/test3.sh
-	chmod +x ./script/test3_aux.sh
 	./script/test3.sh &
 
 

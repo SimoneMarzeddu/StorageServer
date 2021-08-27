@@ -887,8 +887,7 @@ int main (int argc, char * argv[])
     free(arg);
     //una volta che tutte le operazioni richieste sono state eseguite la connessione al server viene chiusa
     closeConnection(farg);
-
     return 0;
 }
 
-// UPDATE: TEST 1 SUCCESSO
+// UPDATE: TEST 3 SUCCESSO

@@ -2968,7 +2968,7 @@ int main(int argc, char* argv[])
         printf("Dimensione Massima raggiunta dallo storage in Byte: %lu\n", max_size_reached);
         printf("Dimensione media delle read effettuate: %lu\n", media_read_size);
         printf("Dimensione media delle write effettuate: %lu\n", media_write_size);
-        printf("Numero di volte in cui è stato avvio l'algoritmo di rimpiazzamento: %lu\n", replace_alg_no);
+        printf("Numero di volte in cui è stato avviato l'algoritmo di rimpiazzamento: %lu\n", replace_alg_no);
         printf("Numero di files rimossi tramite rimpiazzamento: %lu\n\n",replace_no);
         printf("Di seguito è riportato lo stato dello storage al momento della chiusura:\n");
         hash_print(storage);
@@ -2984,4 +2984,4 @@ int main(int argc, char* argv[])
 
 }
 
-// UPDATE: TEST 1 SUCCESSO
+// UPDATE: TEST 3 SUCCESSO
