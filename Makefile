@@ -49,7 +49,7 @@ test2var : $(TARGETS)
 	chmod +x ./script/test2_variant.sh
 	./script/test2_variant.sh &
 
-#secondo test
+#terzo test
 test3 : $(TARGETS)
 	chmod +x ./script/test3.sh
 	./script/test3.sh &
