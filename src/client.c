@@ -734,7 +734,7 @@ int main (int argc, char * argv[])
                 if ((n = readNFiles(N,dir))==-1)
                 {
                     if (flag_stampa==1) printf("OP : -R (leggi N file) Esito : fallimento\n");
-                    perror("Errore lettura file");
+                    perror("ERRORE: lettura file");
                 }
                 else
                 {
@@ -846,7 +846,7 @@ int main (int argc, char * argv[])
                         if (unlockFile(resolvedPath)==-1)
                         {
                             if (flag_stampa==1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n",file);
-                            perror("ERRORE: lock del file");
+                            perror("ERRORE: unlock del file");
                         }else{
                             if (flag_stampa==1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : successo\n",file);
                         }

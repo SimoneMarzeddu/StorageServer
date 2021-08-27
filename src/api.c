@@ -119,7 +119,7 @@ int writen(long fd, const void *buf, size_t nbyte){
         if( w == 0 )
             return writen;
 
-        writen += w;;
+        writen += w;
     }
 
     return writen;
@@ -155,6 +155,7 @@ int openConnection(const char* nome_sock, int msec, const struct timespec abstim
     if ((fd_s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {// otteniamo il file descriptor del socket
         errno = EINVAL;
+        perror("ERRORE: socket");
         return -1;
     }
 
@@ -167,6 +168,7 @@ int openConnection(const char* nome_sock, int msec, const struct timespec abstim
     if (compareTime(time, abstime) > 0)
     {// se la connessione non è riuscita entro il tempo massimo abbiamo un errore di timeout
         errno = ETIMEDOUT;
+        perror("ERRORE: timeout connessione");
         return -1;
     }
 

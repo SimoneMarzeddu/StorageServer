@@ -253,6 +253,7 @@ static int c_list_add_head (c_list* lst, size_t c_pid)
 
     return 1;
 }
+/*
 static int c_list_pop (c_list* lst)
 {
     if (lst == NULL)
@@ -280,6 +281,7 @@ static int c_list_pop (c_list* lst)
         return out;
     }
 }
+*/
 static int c_list_pop_worker (c_list* lst)
 {
     if (lst == NULL)
@@ -557,6 +559,7 @@ static int fifo_push (fifo* lst, fifo_node* file1)
 
     return 1;
 }
+/*
 static char* fifo_pop (fifo* lst)
 {
     Pthread_mutex_lock(&queue_mtx);
@@ -597,6 +600,7 @@ static char* fifo_pop (fifo* lst)
         return path;
     }
 }
+*/
 static int fifo_rem_file (fifo* lst, char* path)
 {
     Pthread_mutex_lock(&queue_mtx);
@@ -666,6 +670,7 @@ static int fifo_rem_file (fifo* lst, char* path)
     Pthread_mutex_unlock(&queue_mtx);
     return -1;
 }
+/*
 static void fifo_print (fifo* lst)
 {
     if (lst == NULL)
@@ -688,6 +693,7 @@ static void fifo_print (fifo* lst)
 
     return;
 }
+*/
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
 static f_list* f_list_init ()
@@ -2874,7 +2880,7 @@ int main(int argc, char* argv[])
                             }
                             if (flag == 1)
                             {//il client è terminato, il suo fd deve essere rimosso dal set
-                                printf("Chiusura della connessione\n");
+                                //printf("Chiusura della connessione\n");
                                 FD_CLR(fd_c1,&set);//rimozione del fd del client termianto dal set
                                 if (fd_c1 == fd_num) fd_num = max_up(set,fd_num);//aggiorno l'indice massimo
                                 close(fd_c1);//chiusura del client
@@ -2951,7 +2957,7 @@ int main(int argc, char* argv[])
     {
         fprintf(log_file,"END\n");
         fprintf(log_file,"SUNTO DELLE STATISTICHE:\n");
-        fprintf(log_file,"-Numero di read: %lu;\n-Size media delle letture in bytes: %lu;\n-Numero di write: %lu;\n-Size media delle scritture in bytes: %lu;\n-Numero di lock: %lu;\n-Numero di openlock: %lu;\n-Numero di unlock: %lu;\n-Numero di close: %lu;\n-Dimensione massima dello storage in MB: %lu;\n-Dimensione massima dello storage in numero di files: %lu;\n-Numero di replace per selezionare un file vittima: %lu;\n-Massimo numero di connessioni contemporanee: %lu;\n",read_no,media_read_size,write_no,media_write_size,lock_no,openlock_no,unlock_no,close_no,max_size_reached,max_no_reached,replace_no,max_connections_no);
+        fprintf(log_file,"-Numero di read: %lu;\n-Size media delle letture in bytes: %lu;\n-Numero di write: %lu;\n-Size media delle scritture in bytes: %lu;\n-Numero di lock: %lu;\n-Numero di openlock: %lu;\n-Numero di unlock: %lu;\n-Numero di close: %lu;\n-Dimensione massima dello storage in MB: %lu;\n-Dimensione massima dello storage in numero di files: %lu;\n-Numero di replace per selezionare un file vittima: %lu;\n-Massimo numero di connessioni contemporanee: %lu;\n",read_no,media_read_size,write_no,media_write_size,lock_no,openlock_no,unlock_no,close_no,max_size_reachedMB,max_no_reached,replace_no,max_connections_no);
         // il numero di richieste soddisfatte da ogni thread è lasciato al parsing in statistiche.sh
     } // chiusura del file di log
 
@@ -2962,7 +2968,8 @@ int main(int argc, char* argv[])
         printf("Dimensione Massima raggiunta dallo storage in Byte: %lu\n", max_size_reached);
         printf("Dimensione media delle read effettuate: %lu\n", media_read_size);
         printf("Dimensione media delle write effettuate: %lu\n", media_write_size);
-        printf("Numero di volte in cui è stato avvio l'algoritmo: %lu\n\n", replace_alg_no);
+        printf("Numero di volte in cui è stato avvio l'algoritmo di rimpiazzamento: %lu\n", replace_alg_no);
+        printf("Numero di files rimossi tramite rimpiazzamento: %lu\n\n",replace_no);
         printf("Di seguito è riportato lo stato dello storage al momento della chiusura:\n");
         hash_print(storage);
     } // sunto sull'esecuzione
