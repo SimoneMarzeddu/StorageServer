@@ -80,7 +80,7 @@ int readn(long fd, void *buf, size_t size) {
                 // se la read è stata interrotta da un segnale riprende
                 continue;
             else{
-                perror("Readn");
+                perror("ERRORE: Readn");
                 return -1;
             }
         }
