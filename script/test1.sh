@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# inizio parte makefile
-
-valgrind --leak-check=full ./server -cnfg ./Test1/config1.txt &
-spid=$! #pid del processo più recente
-
-# fine parte makefile
-
 echo "ATTESA : Avvio del Server"
 sleep 2 #attesa post avvio server
 
@@ -16,4 +9,4 @@ sleep 2 #attesa post avvio server
 
 #invio di sighup al server
 
-kill -s SIGHUP $spid
+killall -s SIGHUP memcheck-amd64-

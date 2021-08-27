@@ -1,8 +1,8 @@
 CC 			= gcc
 CFLAGS		= -g -Wall
-TARGETS		= server client stats
+TARGETS		= server client
 
-.PHONY: all clean cleanall test1 test2
+.PHONY: all clean cleanall test1 test2 test2var
 
 #genera tutti gli eseguibili
 all : $(TARGETS)
@@ -23,6 +23,7 @@ lib/libapi.a : objs/api.o
 
 stats :
 	chmod +x ./script/statistiche.sh
+	./script/statistiche.sh
 #elimina gli eseguibili
 clean :
 	-rm -f $(TARGETS)
@@ -34,14 +35,19 @@ cleanall :
 
 #primo test
 test1 : $(TARGETS)
+	valgrind --leak-check=full ./server -cnfg ./Test1/config1.txt &
 	chmod +x ./script/test1.sh
 	./script/test1.sh &
 
 #secondo test
 test2 : $(TARGETS)
-	./server -s configTest2/config.txt &
-	chmod +x test2.sh
-	./test2.sh &
+	chmod +x ./script/test2.sh
+	./script/test2.sh &
+
+#variante del secondo test
+test2var : $(TARGETS)
+	chmod +x ./script/test2_variant.sh
+	./script/test2_variant.sh &
 
 
 

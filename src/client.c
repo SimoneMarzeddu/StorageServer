@@ -16,8 +16,8 @@
 #include <libgen.h>
 
 
-#define MSG_SIZE 1024
-#define MAX_CNT_LEN 1000
+#define MSG_SIZE 2048
+#define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108 /* man 7 unix */
 
 int flag_stampa = 0;
@@ -663,7 +663,7 @@ int main (int argc, char * argv[])
                             size_t size;
                             if (readFile(resolvedPath, (void **) &buf, &size) == -1)
                             {
-                                if (flag_stampa == 1) printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
                                 perror("ERRORE: lettura del file");
                             }
                             else
@@ -682,7 +682,7 @@ int main (int argc, char * argv[])
                                     of = fopen(path, "w");
                                     if (of == NULL) {
                                         if (flag_stampa == 1)
-                                            printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                            printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
                                         perror("ERRORE: salvataggio del file\n");
                                     } else {
                                         fprintf(of, "%s", buf);
@@ -692,11 +692,11 @@ int main (int argc, char * argv[])
                             }
                             if (closeFile(resolvedPath) == -1) {
                                 if (flag_stampa == 1)
-                                    printf("OP: -r (leggi file) File : %s Esito : fallimento\n", file);
+                                    printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
                                 perror("ERRORE: chiusura file");
                             } else {
                                 if (flag_stampa == 1)
-                                    printf("OP: -r (leggi file) File : %s Dimensione Letta: %lu Esito : successo\n",
+                                    printf("OP : -r (leggi file) File : %s Dimensione Letta: %lu Esito : successo\n",
                                            file,
                                            strnlen(buf, MAX_CNT_LEN));
                             }

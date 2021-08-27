@@ -14,9 +14,9 @@
 #include <limits.h>
 #include <math.h>
 
-#define UNIX_MAX_STANDARD_FILENAME_LENGHT 108
-#define MSG_SIZE 1024
-#define MAX_CNT_LEN 1000
+#define MSG_SIZE 2048
+#define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
+#define UNIX_MAX_STANDARD_FILENAME_LENGHT 108 /* man 7 unix */
 #define SOCKET_NAME "./ssocket.sk"
 #define LOG_NAME "./log.txt"
 
@@ -2163,6 +2163,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
             f_list_free(tmp);
             return;
         }
+
         int true_bck = (int)strtol(bck, NULL, 10);
         file* cursor = tmp->head;
         size_t rpl_size = 0;
@@ -2177,7 +2178,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
             rpl_size = rpl_size + strnlen(cursor->cnt,MSG_SIZE);
             rpl_no++;
 
-            if (writen(fd_c,out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MSG_SIZE + 1) == -1)
+            if (writen(fd_c,out,MSG_SIZE) == -1)
             {
                 perror("Worker : scrittura nel socket");
                 *end = 1;
@@ -2197,6 +2198,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
                 return;
             }
             true_bck = (int)strtol(bck, NULL, 10);
+            cursor = cursor->next;
         }
 
         // UPDATE DEL FILE DI LOG
@@ -2325,7 +2327,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         {
             errno = ENOMEM;
             free(buf);
-            return -1;
+            return;
         }
 
         size_t size;
@@ -2936,8 +2938,12 @@ int main(int argc, char* argv[])
     } // server core
 
     {
-        media_read_size = (float) total_read_size/read_no;
-        media_write_size = (float) total_write_size/write_no;
+        size_t fake_read_no = 1;
+        size_t fake_write_no = 1;
+        if (read_no != 0) fake_read_no = read_no;
+        if (write_no != 0) fake_write_no = write_no;
+        media_read_size = (float) total_read_size/fake_read_no;
+        media_write_size = (float) total_write_size/fake_write_no;
         max_size_reachedMB = (float) max_size_reached/(1024*1024);
 
     } // elaborazioni per il file delle statistiche
@@ -2956,7 +2962,7 @@ int main(int argc, char* argv[])
         printf("Dimensione Massima raggiunta dallo storage in Byte: %lu\n", max_size_reached);
         printf("Dimensione media delle read effettuate: %lu\n", media_read_size);
         printf("Dimensione media delle write effettuate: %lu\n", media_write_size);
-        printf("Numero di Replace eseguite: %lu\n\n", replace_alg_no);
+        printf("Numero di volte in cui è stato avvio l'algoritmo: %lu\n\n", replace_alg_no);
         printf("Di seguito è riportato lo stato dello storage al momento della chiusura:\n");
         hash_print(storage);
     } // sunto sull'esecuzione

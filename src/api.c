@@ -12,8 +12,8 @@
 #include <dirent.h>
 #include "../headers/api.h"
 
-#define MSG_SIZE 1024
-#define MAX_CNT_LEN 1000
+#define MSG_SIZE 2048
+#define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108 /* man 7 unix */
 
 int c_state = 0;//flag indicante lo stato di connessione del client
@@ -462,12 +462,19 @@ int writeFile(const char* path, const char* dir)
     {
         int rem_n = (int) strtol(token, NULL, 10);
         int i = 0;
-        if (writen(fd_s, "1", MSG_SIZE) == -1) {
+        if (writen(fd_s, "1", MSG_SIZE) == -1)
+        {
             errno = EREMOTEIO;
             return -1;
         }
         while (i < rem_n)
         {
+
+            if (writen(fd_s, "1", MSG_SIZE) == -1) {
+                errno = EREMOTEIO;
+                return -1;
+            }
+
             if (readn(fd_s, message, MSG_SIZE) == -1)
             {
                 errno = EREMOTEIO;
@@ -495,7 +502,9 @@ int writeFile(const char* path, const char* dir)
                 //se il file non esiste esso viene creato
                 FILE *true_file;
                 true_file = fopen(true_path, "w");
-                if (true_file == NULL) {
+
+                if (true_file == NULL)
+                {
                     printf("Errore nell'apertura del file\n");
                     return -1;
                 } else {
@@ -504,6 +513,7 @@ int writeFile(const char* path, const char* dir)
                 }
             }
             i++;
+
         }
         // printf("Operazione Completata : writeFile\n");
         return 0;
