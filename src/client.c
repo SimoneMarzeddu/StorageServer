@@ -1,6 +1,3 @@
-//
-// Created by xubuntu on 21/08/21.
-//
 #include "../headers/api.h"
 #include <stdio.h>
 #include <string.h>
@@ -100,7 +97,7 @@ void w_exec (char* dirname, int n, char* dest_dirname)
             {
                 errno = 0;
 
-                if (openFile(resolvedPath,0) == -1)
+                if (openFile(resolvedPath,1) == -1)
                 {
                     if (errno == ENOENT)
                     {
@@ -550,7 +547,7 @@ int main (int argc, char * argv[])
                         {
                             errno = 0;
 
-                            if (openFile(resolvedPath,0) == -1)
+                            if (openFile(resolvedPath,1) == -1)
                             {
                                 if (errno == ENOENT)
                                 {
@@ -890,4 +887,4 @@ int main (int argc, char * argv[])
     return 0;
 }
 
-// UPDATE: TEST 3 SUCCESSO
+// UPDATE: minor changes

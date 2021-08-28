@@ -112,7 +112,7 @@ int writen(long fd, const void *buf, size_t nbyte){
             else if ( errno == EPIPE )
                 break;
             else{
-                perror("Writen");
+                perror("ERRORE: Writen");
                 return -1;
             }
         }
@@ -571,8 +571,21 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
     {
         int rem_n = (int) strtol(token, NULL, 10);
         int i = 0;
-        while (i < rem_n) {
-            if (readn(fd_s, message, MSG_SIZE) == -1) {
+        if (writen(fd_s, "1", MSG_SIZE) == -1)
+        {
+            errno = EREMOTEIO;
+            return -1;
+        }
+        while (i < rem_n)
+        {
+
+            if (writen(fd_s, "1", MSG_SIZE) == -1) {
+                errno = EREMOTEIO;
+                return -1;
+            }
+
+            if (readn(fd_s, message, MSG_SIZE) == -1)
+            {
                 errno = EREMOTEIO;
                 return -1;
             }
@@ -598,7 +611,9 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
                 //se il file non esiste esso viene creato
                 FILE *true_file;
                 true_file = fopen(true_path, "w");
-                if (true_file == NULL) {
+
+                if (true_file == NULL)
+                {
                     printf("Errore nell'apertura del file\n");
                     return -1;
                 } else {
@@ -608,7 +623,6 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
             }
             i++;
         }
-        // printf("Operazione Completata : appendToFile\n");
         return 0;
     }
 }
@@ -775,4 +789,4 @@ int readNFiles(int N, const char* dir)
     return file_N;
 }
 
-// UPDATE: TEST 3 SUCCESSO
+// UPDATE: minor changes

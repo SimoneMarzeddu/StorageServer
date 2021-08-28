@@ -42,7 +42,7 @@ pthread_mutex_t log_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusio
 
 typedef struct scnode
 {
-    size_t c_pid;
+    size_t c_info;
     struct scnode* next;
     struct scnode* prec;
 } c_node;
@@ -104,7 +104,7 @@ pthread_mutex_t strg_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per garantire l'a
 static fifo* queue = NULL;      // struttura dati di appoggio per la gestione dei rimpizzamenti con politica fifo
 pthread_mutex_t queue_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sulla coda fifo
 
-static c_list* coda = NULL;     // struttura dati di tipo coda FIFO per la comunicazione Master/Worker (uso improprio della nomenclatura "c_pid")
+static c_list* coda = NULL;     // struttura dati di tipo coda FIFO per la comunicazione Master/Worker (uso improprio della nomenclatura "c_info")
 pthread_mutex_t coda_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sugli accessi alla coda
 pthread_cond_t wait_coda = PTHREAD_COND_INITIALIZER;
 
@@ -153,10 +153,10 @@ static void Pthread_mutex_unlock (pthread_mutex_t* mtx)
     }
 }
 
-//    FUNZIONI PER NODI DI C_PID   //
-static c_node* c_node_init (size_t c_pid)
+//    FUNZIONI PER NODI DI c_info   //
+static c_node* c_node_init (size_t c_info)
 {
-    if (c_pid == 0)
+    if (c_info == 0)
     {
         errno = EINVAL;
         return NULL;
@@ -172,13 +172,13 @@ static c_node* c_node_init (size_t c_pid)
 
     tmp->next = NULL;
     tmp->prec = NULL;
-    tmp->c_pid = c_pid;
+    tmp->c_info = c_info;
 
     return tmp;
 
 }
 
-//    FUNZIONI PER LISTE DI NODI DI C_PID   // (USATE anche per comunicazione Main Thread/WorkerThread)
+//    FUNZIONI PER LISTE DI NODI DI c_info   // (USATE anche per comunicazione Main Thread/WorkerThread)
 static c_list* c_list_init ()
 {
     c_list* tmp = malloc(sizeof(c_list));
@@ -212,9 +212,9 @@ static void c_list_free (c_list* lst)
 
     free(lst);
 }
-static int c_list_cont_node (c_list* lst, size_t c_pid)
+static int c_list_cont_node (c_list* lst, size_t c_info)
 {
-    if (lst == NULL || c_pid == 0)
+    if (lst == NULL || c_info == 0)
     {
         errno = EINVAL;
         return -1;
@@ -223,22 +223,22 @@ static int c_list_cont_node (c_list* lst, size_t c_pid)
     c_node* cursor = lst->head;
     while (cursor != NULL)
     {
-        if (cursor->c_pid == c_pid) return 1;
+        if (cursor->c_info == c_info) return 1;
         cursor = cursor->next;
     }
 
     errno = ENOENT;
     return 0;
 }
-static int c_list_add_head (c_list* lst, size_t c_pid)
+static int c_list_add_head (c_list* lst, size_t c_info)
 {
-    if (lst == NULL || c_pid == 0)
+    if (lst == NULL || c_info == 0)
     {
         errno = EINVAL;
         return -1;
     }
 
-    c_node* tmp = c_node_init(c_pid);
+    c_node* tmp = c_node_init(c_info);
     if (lst->head == NULL)
     {
         lst->head = tmp;
@@ -263,7 +263,7 @@ static int c_list_pop (c_list* lst)
     }
     if (lst->tail == NULL) return 0;
 
-    size_t out = lst->tail->c_pid;
+    size_t out = lst->tail->c_info;
 
     if (lst->head == lst->tail)
     {
@@ -294,7 +294,7 @@ static int c_list_pop_worker (c_list* lst)
         pthread_cond_wait(&wait_coda,&coda_mtx);
     }
 
-    size_t out = lst->tail->c_pid;
+    size_t out = lst->tail->c_info;
 
     if (lst->head == lst->tail)
     {
@@ -313,9 +313,9 @@ static int c_list_pop_worker (c_list* lst)
     }
 
 }
-static int c_list_rem_node (c_list* lst, size_t c_pid)
+static int c_list_rem_node (c_list* lst, size_t c_info)
 {
-    if (lst == NULL || c_pid == 0)
+    if (lst == NULL || c_info == 0)
     {
         errno = EINVAL;
         return -1;
@@ -330,7 +330,7 @@ static int c_list_rem_node (c_list* lst, size_t c_pid)
     // eliminazione di un nodo in testa
     if ( lst->head != NULL)
     {
-        if (c_pid == lst->head->c_pid) {
+        if (c_info == lst->head->c_info) {
             if (lst->head->next != NULL)
             {
                 lst->head->next->prec = NULL;
@@ -353,9 +353,9 @@ static int c_list_rem_node (c_list* lst, size_t c_pid)
 
     while (cursor != NULL)
     {
-        if (cursor->c_pid == c_pid)
+        if (cursor->c_info == c_info)
         {
-            if (lst->tail->c_pid == c_pid) {
+            if (lst->tail->c_info == c_info) {
                 lst->tail->prec->next = NULL;
                 lst->tail = lst->tail->prec;
                 free(cursor);
@@ -1102,9 +1102,9 @@ static int hash_cont_file (hash* tbl, char* path)
     }
     return -1;
 }
-static f_list* hash_replace (hash* tbl, char* path, size_t c_pid)
+static f_list* hash_replace (hash* tbl, char* path, size_t c_info)
 {
-    if (tbl == NULL || c_pid == 0 || path == NULL)
+    if (tbl == NULL || c_info == 0 || path == NULL)
     {
         errno = EINVAL;
         return NULL;
@@ -1137,7 +1137,7 @@ static f_list* hash_replace (hash* tbl, char* path, size_t c_pid)
             return NULL;
         }
 
-        while ((p_kill_file->lock_owner != 0 && p_kill_file->lock_owner != c_pid) || (p_kill_ff->path == path))
+        while ((p_kill_file->lock_owner != 0 && p_kill_file->lock_owner != c_info) || (p_kill_ff->path == path))
         {
             p_kill_ff = p_kill_ff->prec;
             if (p_kill_ff == NULL)
@@ -1290,7 +1290,7 @@ int writen(long fd, const void *buf, size_t nbyte){
  * 2 -> 10 -> O_CREATE = 1 && O_LOCK = 0
  * 3 -> 11 -> O_CREATE = 1 && O_LOCK = 1
  */
-static int open_File (char* path, int flags, size_t c_pid)
+static int open_File (char* path, int flags, size_t c_info)
 {
     if (path == NULL || flags<0 || flags>3)
     {
@@ -1303,32 +1303,33 @@ static int open_File (char* path, int flags, size_t c_pid)
 
     switch (flags)
     {
-        case 0 :
-        {
-            if (!ex)
-            {
+        case 0 : {
+            if (!ex) {
                 errno = ENOENT;
                 return -1;
             }
 
-            file* tmp = hash_get_file(storage,path);
+            file *tmp = hash_get_file(storage, path);
             if (tmp == NULL) return -1;
-            f_list* tmp_lst = hash_get_list(storage,path);
+            f_list *tmp_lst = hash_get_list(storage, path);
             if (tmp_lst == NULL) return -1;
 
             Pthread_mutex_lock(&(tmp_lst->mtx));
 
-            sleep(2);
-
-            if(c_list_rem_node(tmp->whoop,c_pid) == -1)
+            if (tmp->lock_owner == 0 || tmp->lock_owner == c_info)
             {
+                if (c_list_rem_node(tmp->whoop, c_info) == -1)
+                {
+                    Pthread_mutex_unlock(&(tmp_lst->mtx));
+                    return -1;
+                }
+                tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
-                return -1;
+                return 0;
             }
-            if (tmp->lock_owner == 0 || tmp->lock_owner == c_pid) tmp->op = 1;
             Pthread_mutex_unlock(&(tmp_lst->mtx));
-            return 0;
-
+            errno = EPERM;
+            return -1;
         }
 
         case 1 :
@@ -1350,16 +1351,22 @@ static int open_File (char* path, int flags, size_t c_pid)
             openlock_no++;
             lock_no++;
             Pthread_mutex_unlock(&stats_mtx);
-            tmp->lock_owner = c_pid;
-            if(c_list_add_head(tmp->whoop,c_pid) == -1)
-            {
-                Pthread_mutex_unlock(&(tmp_lst->mtx));
-                return -1;
-            }
-            tmp->op = 1;
 
+            if( tmp->lock_owner == 0 || tmp->lock_owner == c_info)
+            {
+                tmp->lock_owner = c_info;
+                if (c_list_add_head(tmp->whoop, c_info) == -1) {
+                    Pthread_mutex_unlock(&(tmp_lst->mtx));
+                    return -1;
+                }
+                tmp->op = 1;
+
+                Pthread_mutex_unlock(&(tmp_lst->mtx));
+                return 0;
+            }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
-            return 0;
+            errno = EPERM;
+            return -1;
 
         }
 
@@ -1382,7 +1389,7 @@ static int open_File (char* path, int flags, size_t c_pid)
                 if (tmp == NULL) return -1;
 
                 tmp->op = 1;
-                if(c_list_add_head(tmp->whoop,c_pid) == -1) return -1;
+                if(c_list_add_head(tmp->whoop,c_info) == -1) return -1;
 
                 f_list* tmp_lst = hash_get_list(storage,path);
                 if (tmp_lst == NULL) return -1;
@@ -1402,7 +1409,6 @@ static int open_File (char* path, int flags, size_t c_pid)
                 Pthread_mutex_unlock(&tmp_lst->mtx);
                 return 0;
             }
-
             errno = ENFILE;
             return -1;
         }
@@ -1422,7 +1428,7 @@ static int open_File (char* path, int flags, size_t c_pid)
 
             if (cond)
             {
-                file *tmp = file_init(path, "", c_pid);
+                file *tmp = file_init(path, "", c_info);
                 if (tmp == NULL) return -1;
 
                 f_list *tmp_lst = hash_get_list(storage,path);
@@ -1431,7 +1437,7 @@ static int open_File (char* path, int flags, size_t c_pid)
                 Pthread_mutex_lock(&(tmp_lst->mtx));
 
                 tmp->op = 1;
-                if(c_list_add_head(tmp->whoop,c_pid) == -1)
+                if(c_list_add_head(tmp->whoop,c_info) == -1)
                 {
                     Pthread_mutex_unlock(&(tmp_lst->mtx));
                     return -1;
@@ -1464,7 +1470,7 @@ static int open_File (char* path, int flags, size_t c_pid)
          }
     }
 }
-static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
+static int read_File (char* path, char* buf, size_t* size, size_t c_info)
 {
     if (path == NULL)
     {
@@ -1481,7 +1487,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
 
     if (hash_cont_file(storage,path))
     {
-        if (tmp->lock_owner == 0 || tmp->lock_owner == c_pid)
+        if (tmp->lock_owner == 0 || tmp->lock_owner == c_info)
         {
             *size = strlen((char*)tmp->cnt);
 
@@ -1492,7 +1498,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
             total_read_size = total_read_size + (*size);
             Pthread_mutex_unlock(&stats_mtx);
 
-            if(c_list_rem_node(tmp->whoop,c_pid) == -1)
+            if(c_list_rem_node(tmp->whoop,c_info) == -1)
             {
                 Pthread_mutex_unlock(&tmp_lst->mtx);
                 return -1;
@@ -1513,7 +1519,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_pid)
     Pthread_mutex_unlock(&tmp_lst->mtx);
     return -1;
 }
-static f_list* read_N_File (int N, int* count, size_t c_pid)
+static f_list* read_N_File (int N, int* count, size_t c_info)
 {
     if ((*count) != 0)
     {
@@ -1540,13 +1546,13 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
             while(cursor != NULL)
             {
                 //anche i files chiusi possno essere letti, ma questo non vale per i files lockati
-                if(cursor->lock_owner == 0 || cursor->lock_owner == c_pid)
+                if(cursor->lock_owner == 0 || cursor->lock_owner == c_info)
                 {
                     file* copy = file_copy(cursor);
                     if(copy == NULL) return NULL;
                     total = total + strlen(copy->cnt);
                     if(f_list_add_head(out, copy) == -1) return NULL;
-                    if(c_list_rem_node(cursor->whoop,c_pid) == -1) return NULL;
+                    if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
                 }
                 cursor = cursor->next;
@@ -1566,7 +1572,7 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
 
             while(cursor != NULL && pkd<N)
             {//anche i files chiusi possno essere letti, ma questo non vale per i files lockati
-                if (cursor->lock_owner == 0 || cursor->lock_owner == c_pid)
+                if (cursor->lock_owner == 0 || cursor->lock_owner == c_info)
                 {
                     file* copy = file_copy(cursor);
                     if(copy == NULL)
@@ -1580,7 +1586,7 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
                         Pthread_mutex_lock(&storage->lists[i]->mtx);
                         return NULL;
                     }
-                    if(c_list_rem_node(cursor->whoop,c_pid) == -1)
+                    if(c_list_rem_node(cursor->whoop,c_info) == -1)
                     {
                         Pthread_mutex_lock(&storage->lists[i]->mtx);
                         return NULL;
@@ -1604,7 +1610,7 @@ static f_list* read_N_File (int N, int* count, size_t c_pid)
     (*count) = r_num;
     return out;
 }
-static f_list* write_File (char* path, char* cnt, size_t c_pid)
+static f_list* write_File (char* path, char* cnt, size_t c_info)
 {
     if (path == NULL || cnt == NULL)
     {
@@ -1625,14 +1631,14 @@ static f_list* write_File (char* path, char* cnt, size_t c_pid)
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
     }
-    if (tmp->lock_owner == 0 || tmp->lock_owner != c_pid)
+    if (tmp->lock_owner == 0 || tmp->lock_owner != c_info)
     {
         errno = EPERM;
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
     }
 
-    int prec_op = c_list_cont_node(tmp->whoop, c_pid);
+    int prec_op = c_list_cont_node(tmp->whoop, c_info);
     if (prec_op == -1)
     {
         Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1660,13 +1666,13 @@ static f_list* write_File (char* path, char* cnt, size_t c_pid)
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
 
-    f_list* out = hash_replace(storage,path,c_pid);
+    f_list* out = hash_replace(storage,path,c_info);
 
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     return out;
 
 }
-static f_list* append_to_File (char* path, char* cnt, size_t c_pid)
+static f_list* append_to_File (char* path, char* cnt, size_t c_info)
 {
     if (path == NULL || cnt == NULL)
     {
@@ -1692,14 +1698,14 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_pid)
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
     }
-    if (tmp->lock_owner == 0 || tmp->lock_owner != c_pid)
+    if (tmp->lock_owner == 0 || tmp->lock_owner != c_info)
     {
         errno = EPERM;
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
     }
 
-    int prec_op = c_list_cont_node(tmp->whoop, c_pid);
+    int prec_op = c_list_cont_node(tmp->whoop, c_info);
     if (prec_op == -1)
     {
         Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1727,11 +1733,11 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_pid)
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
 
-    f_list* out = hash_replace(storage,path,c_pid);
+    f_list* out = hash_replace(storage,path,c_info);
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     return out;
 }
-static int lock_File (char* path, size_t c_pid)
+static int lock_File (char* path, size_t c_info)
 {
     if (path == NULL)
     {
@@ -1746,13 +1752,13 @@ static int lock_File (char* path, size_t c_pid)
     if(tmp_lst == NULL) return -1;
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
-    tmp->lock_owner = c_pid;
+    tmp->lock_owner = c_info;
 
     Pthread_mutex_lock(&stats_mtx);
     lock_no++;
     Pthread_mutex_unlock(&stats_mtx);
 
-    if(c_list_rem_node(tmp->whoop,c_pid) == -1)
+    if(c_list_rem_node(tmp->whoop,c_info) == -1)
     {
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return -1;
@@ -1760,7 +1766,7 @@ static int lock_File (char* path, size_t c_pid)
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     return 0;
 }
-static int unlock_File (char* path, size_t c_pid)
+static int unlock_File (char* path, size_t c_info)
 {
     if (path == NULL)
     {
@@ -1774,7 +1780,7 @@ static int unlock_File (char* path, size_t c_pid)
     f_list* tmp_lst = hash_get_list(storage,path);
     if (tmp_lst == NULL) return -1;
 
-    if (tmp->lock_owner == c_pid)
+    if (tmp->lock_owner == c_info)
     {
         Pthread_mutex_lock(&(tmp_lst->mtx));
         tmp->lock_owner = 0;
@@ -1783,7 +1789,7 @@ static int unlock_File (char* path, size_t c_pid)
         unlock_no++;
         Pthread_mutex_unlock(&stats_mtx);
 
-        if(c_list_rem_node(tmp->whoop,c_pid) == -1)
+        if(c_list_rem_node(tmp->whoop,c_info) == -1)
         {
             Pthread_mutex_unlock(&(tmp_lst->mtx));
             return -1;
@@ -1798,7 +1804,7 @@ static int unlock_File (char* path, size_t c_pid)
     }
 
 }
-static int close_File (char* path, size_t c_pid)
+static int close_File (char* path, size_t c_info)
 {
     if (path == NULL)
     {
@@ -1813,7 +1819,7 @@ static int close_File (char* path, size_t c_pid)
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
 
-    if (tmp->op && (tmp->lock_owner == c_pid || tmp->lock_owner == 0))
+    if (tmp->op && (tmp->lock_owner == c_info || tmp->lock_owner == 0))
     {
         tmp->op = 0;
 
@@ -1821,7 +1827,7 @@ static int close_File (char* path, size_t c_pid)
         close_no++;
         Pthread_mutex_unlock(&stats_mtx);
 
-        if(c_list_rem_node(tmp->whoop,c_pid) == -1)
+        if(c_list_rem_node(tmp->whoop,c_info) == -1)
         {
             Pthread_mutex_unlock(&(tmp_lst->mtx));
             return -1;
@@ -1837,7 +1843,7 @@ static int close_File (char* path, size_t c_pid)
     }
 
 }
-static int remove_File (char* path, size_t c_pid)
+static int remove_File (char* path, size_t c_info)
 {
     if (path == NULL)
     {
@@ -1852,7 +1858,7 @@ static int remove_File (char* path, size_t c_pid)
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
 
-    if (tmp->lock_owner == c_pid)
+    if (tmp->lock_owner == c_info)
     {
         file* dummy = hash_rem_file2(storage,path);
         if (dummy == NULL)
@@ -1915,7 +1921,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         int flags = (size_t) atoi(token);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
 
         // esecuzione della richiesta
@@ -1958,7 +1964,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
         // esecuzione della richiesta
         int res;
@@ -1999,7 +2005,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
 
         // esecuzione della richiesta
@@ -2042,7 +2048,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
 
         // esecuzione della richiesta
@@ -2085,7 +2091,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
         int res = remove_File(path,fd_c);
         int log_res;
@@ -2131,7 +2137,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         size_t cnt_size = strnlen(cnt,MSG_SIZE);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
          */
         // esecuzione della richiesta
         errno = 0;
@@ -2229,7 +2235,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         size_t cnt_size = strnlen(cnt,MSG_SIZE);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
          */
 
         // esecuzione della richiesta
@@ -2245,7 +2251,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         else
         {
             log_res = 1;
-            sprintf(out,"%lu",(tmp->size));
+            sprintf(out,"%lu;",(tmp->size));
         }
 
         if (writen(fd_c,out,MSG_SIZE) == -1)
@@ -2268,6 +2274,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
             f_list_free(tmp);
             return;
         }
+
         int true_bck = (int)strtol(bck, NULL, 10);
         file* cursor = tmp->head;
         size_t rpl_size = 0;
@@ -2282,7 +2289,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
             rpl_size = rpl_size + strnlen(cursor->cnt,MSG_SIZE);
             rpl_no++;
 
-            if (writen(fd_c,out,UNIX_MAX_STANDARD_FILENAME_LENGHT + MSG_SIZE + 1) == -1)
+            if (writen(fd_c,out,MSG_SIZE) == -1)
             {
                 perror("Worker : scrittura nel socket");
                 *end = 1;
@@ -2302,6 +2309,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
                 return;
             }
             true_bck = (int)strtol(bck, NULL, 10);
+            cursor = cursor->next;
         }
 
         // UPDATE DEL FILE DI LOG
@@ -2325,7 +2333,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         size_t size = (size_t) atoi(token);
 
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
          */
 
         char* buf = malloc(sizeof(char)*MAX_CNT_LEN);
@@ -2379,7 +2387,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         int N = (int)strtol(token, NULL, 10);
         /*
         token = strtok_r(NULL,";",&save);
-        size_t c_pid = (size_t) atoi(token);
+        size_t c_info = (size_t) atoi(token);
         */
 
         int count = 0;
@@ -2982,6 +2990,7 @@ int main(int argc, char* argv[])
 
     } // ultime free
 
+    return 0;
 }
 
-// UPDATE: TEST 3 SUCCESSO
+// UPDATE: minor changes
