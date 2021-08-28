@@ -1,68 +1,94 @@
 START
-op/140428287588096/5/1/0/0
-op/140428279195392/5/1/0/0
-op/140428270802688/5/1/0/0
-op/140428295980800/5/1/0/0
-op/140428304373504/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/1
-op/140428304373504/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/3
-op/140428304373504/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/397/0/0/0
-op/140428304373504/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt
-op/140428312766208/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt
-op/140428321158912/5/1/0/0
-op/140428287588096/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt/0
-op/140428287588096/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
-op/140428279195392/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt/0
-op/140428270802688/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt/0
-op/140428295980800/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt/0
-op/140428304373504/5/1/1/397
-op/140428304373504/9/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt
-op/140428304373504/8/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt
-op/140428304373504/11/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt
-op/140428312766208/5/1/0/0
-op/140428321158912/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/1
-op/140428321158912/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/3
-op/140428321158912/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/449/0/0/0
-op/140428321158912/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt
-op/140428329551616/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/1
-op/140428329551616/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/3
-op/140428329551616/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/311/0/0/0
-op/140428329551616/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
-op/140428279195392/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
-op/140428270802688/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt
-op/140428279195392/8/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
-op/140428279195392/11/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
-op/140428295980800/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
-op/140428295980800/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
-op/140428287588096/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
-op/140428270802688/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt
-op/140428287588096/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
-op/140428312766208/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt
-op/140428321158912/11/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt
-op/140428329551616/5/1/0/0
-op/140428270802688/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt
-op/140428295980800/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt
-op/140428312766208/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
-op/140428321158912/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
-op/140428329551616/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
-op/140428312766208/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
-op/140428321158912/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
-op/140428321158912/5/1/0/0
-op/140428329551616/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/1
-op/140428329551616/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/3
-op/140428329551616/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/380/0/0/0
-op/140428329551616/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
-op/140428329551616/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt
+op/139789807318784/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt
+op/139789807318784/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
+op/139789798926080/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt/1
+op/139789798926080/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt/3
+op/139789798926080/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt/261/0/0/0
+op/139789798926080/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt
+op/139789790533376/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt/1
+op/139789790533376/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt/3
+op/139789790533376/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt/425/0/0/0
+op/139789790533376/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt
+op/139789815711488/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt
+op/139789824104192/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt
+op/139789832496896/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f1.txt/1
+op/139789798926080/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt/1
+op/139789798926080/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt/3
+op/139789798926080/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt/624/0/0/0
+op/139789798926080/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt
+op/139789815711488/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
+op/139789790533376/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/1
+op/139789790533376/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/3
+op/139789790533376/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/311/0/0/0
+op/139789790533376/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt
+op/139789807318784/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt/1
+op/139789807318784/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt/3
+op/139789807318784/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt/569/0/0/0
+op/139789807318784/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt
+op/139789824104192/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt
+op/139789840889600/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/1
+op/139789840889600/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/3
+op/139789840889600/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt/449/0/0/0
+op/139789840889600/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f6.txt
+op/139789849282304/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f10.txt/1
+op/139789815711488/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt
+op/139789790533376/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/1
+op/139789790533376/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/3
+op/139789790533376/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt/397/0/0/0
+op/139789790533376/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f3.txt
+op/139789790533376/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt/1
+op/139789790533376/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt/3
+op/139789790533376/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt/526/0/0/0
+op/139789790533376/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f4.txt
+op/139789790533376/5/1/4/1659
+op/139789798926080/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt/1
+op/139789798926080/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt/3
+op/139789798926080/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt/365/0/0/0
+op/139789798926080/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt
+op/139789807318784/11/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt
+op/139789824104192/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt
+op/139789840889600/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/1
+op/139789840889600/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/3
+op/139789840889600/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt/380/0/0/0
+op/139789840889600/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f7.txt
+op/139789849282304/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f11.txt/1
+op/139789815711488/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt
+op/139789815711488/5/1/0/0
+op/139789798926080/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt/1
+op/139789798926080/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt/3
+op/139789798926080/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt/838/0/0/0
+op/139789798926080/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt
+op/139789798926080/5/1/4/2088
+op/139789807318784/5/1/0/0
+op/139789824104192/11/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt
+op/139789824104192/5/1/0/0
+op/139789840889600/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt/1
+op/139789840889600/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt/3
+op/139789840889600/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt/412/0/0/0
+op/139789840889600/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f8.txt
+op/139789840889600/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt/1
+op/139789840889600/3/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt/3
+op/139789840889600/6/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt/365/0/0/0
+op/139789840889600/10/1//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f9.txt
+op/139789840889600/5/1/4/1606
+op/139789849282304/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f12.txt/1
+op/139789832496896/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f2.txt/1
+op/139789849282304/3/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f13.txt/1
+op/139789849282304/5/1/0/0
+op/139789832496896/9/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt
+op/139789832496896/8/0//home/xubuntu/CLionProjects/PROG/Test3/Cartella1/f5.txt
+op/139789832496896/5/1/0/0
 END
 SUNTO DELLE STATISTICHE:
--Numero di read: 1;
--Size media delle letture in bytes: 397;
--Numero di write: 4;
--Size media delle scritture in bytes: 384;
--Numero di lock: 6;
--Numero di openlock: 4;
--Numero di unlock: 1;
--Numero di close: 4;
+-Numero di read: 12;
+-Size media delle letture in bytes: 446;
+-Numero di write: 13;
+-Size media delle scritture in bytes: 455;
+-Numero di lock: 19;
+-Numero di openlock: 19;
+-Numero di unlock: 0;
+-Numero di close: 13;
 -Dimensione massima dello storage in MB: 0;
--Dimensione massima dello storage in numero di files: 2;
+-Dimensione massima dello storage in numero di files: 12;
 -Numero di replace per selezionare un file vittima: 0;
--Massimo numero di connessioni contemporanee: 12;
+-Massimo numero di connessioni contemporanee: 14;
