@@ -5,14 +5,10 @@
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
-#include <ctype.h>
 #include <assert.h>
-#include <limits.h>
-#include <math.h>
 
 #define MSG_SIZE 2048
 #define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
@@ -99,7 +95,6 @@ static size_t curr_size = 0;   // dimensione corrente dello storage
 static size_t curr_no = 0;     // numero corrente di files nello storage
 
 static hash* storage = NULL;    // struttura dati in cui saranno raccolti i files amministratidal server
-pthread_mutex_t strg_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per garantire l'atomicità di "append_File"
 
 static fifo* queue = NULL;      // struttura dati di appoggio per la gestione dei rimpizzamenti con politica fifo
 pthread_mutex_t queue_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sulla coda fifo
@@ -301,7 +296,7 @@ static int c_list_pop_worker (c_list* lst)
         free(lst->tail);
         lst->tail = NULL;
         lst->head = NULL;
-        return out;
+        return (int)out;
     }
     else
     {
@@ -309,7 +304,7 @@ static int c_list_pop_worker (c_list* lst)
         lst->tail = lst->tail->prec;
         lst->tail->next = NULL;
         free(tmp);
-        return out;
+        return (int)out;
     }
 
 }
@@ -493,8 +488,6 @@ static void fifo_node_free (fifo_node* node1)
     if (node1 == NULL) return;
     free(node1->path);
     free(node1);
-
-    return;
 }
 
 static fifo* fifo_init ()
@@ -752,8 +745,6 @@ static void f_list_print (f_list* lst)
     }
 
     printf("END\n");
-
-    return;
 }
 static file* f_list_get_file (f_list* lst, char* path)
 {
@@ -930,7 +921,7 @@ static hash* hash_init (size_t lst_no)
 
     return tmp;
 }
-static long long hash_function (char* str)
+static long long hash_function (const char* str)
 {
     if (str == NULL)
     {
@@ -938,7 +929,7 @@ static long long hash_function (char* str)
         return -1;
     }
     const int p = 47;
-    const int m = 1e9 + 9;
+    const int m = (int) 1e9 + 9;
     long long h_v = 0;
     long long p_pow = 1;
 
@@ -1102,7 +1093,7 @@ static int hash_cont_file (hash* tbl, char* path)
     }
     return -1;
 }
-static f_list* hash_replace (hash* tbl, char* path, size_t c_info)
+static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
 {
     if (tbl == NULL || c_info == 0 || path == NULL)
     {
@@ -1147,7 +1138,7 @@ static f_list* hash_replace (hash* tbl, char* path, size_t c_info)
                 return NULL;
             }
 
-            file* p_kill_file = hash_get_file(storage,p_kill_ff->path);
+            p_kill_file = hash_get_file(storage,p_kill_ff->path);
             if (p_kill_file == NULL)
             {
                 f_list_free(replaced);
@@ -1234,7 +1225,7 @@ int readn(long fd, void *buf, size_t size) {
 
     while ( readn < size ){
 
-        if ( (r = read(fd, buf, size)) == -1 ){
+        if ( (r = (int)read((int)fd, buf, size)) == -1 ){
             if( errno == EINTR )
                 // se la read è stata interrotta da un segnale riprende
                 continue;
@@ -1264,7 +1255,7 @@ int writen(long fd, const void *buf, size_t nbyte){
     int writen = 0, w = 0;
 
     while ( writen < nbyte ){
-        if ( (w = write(fd, buf, nbyte) ) == -1 ){
+        if ( (w = (int)write((int)fd, buf, nbyte) ) == -1 ){
             /* se la write è stata interrotta da un segnale riprende */
             if ( errno == EINTR )
                 continue;
@@ -1505,7 +1496,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
             }
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
-            return 1;
+            return 0;
         }
         else
         {
@@ -1752,19 +1743,23 @@ static int lock_File (char* path, size_t c_info)
     if(tmp_lst == NULL) return -1;
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
-    tmp->lock_owner = c_info;
-
-    Pthread_mutex_lock(&stats_mtx);
-    lock_no++;
-    Pthread_mutex_unlock(&stats_mtx);
-
-    if(c_list_rem_node(tmp->whoop,c_info) == -1)
+    if(tmp->lock_owner == 0 || tmp->lock_owner == c_info)
     {
+        tmp->lock_owner = c_info;
+
+        Pthread_mutex_lock(&stats_mtx);
+        lock_no++;
+        Pthread_mutex_unlock(&stats_mtx);
+
+        if (c_list_rem_node(tmp->whoop, c_info) == -1) {
+            Pthread_mutex_unlock(&(tmp_lst->mtx));
+            return -1;
+        }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        return -1;
+        return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
-    return 0;
+    return -1;
 }
 static int unlock_File (char* path, size_t c_info)
 {
@@ -1918,7 +1913,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
         token = strtok_r(NULL,";",&save);
-        int flags = (size_t) atoi(token);
+        int flags = (int) strtol(token,NULL,10);
         /*
         token = strtok_r(NULL,";",&save);
         size_t c_info = (size_t) atoi(token);
@@ -2879,9 +2874,9 @@ int main(int argc, char* argv[])
                         int fd_c1;
                         int l;
                         int flag;
-                        if ((l = read(pip[0],&fd_c1,sizeof(fd_c1))) > 0)
+                        if ((l = (int)read(pip[0],&fd_c1,sizeof(fd_c1))) > 0)
                         { //lettura del fd di un client
-                            o = read(pip[0],&flag,sizeof(flag));
+                            o = (int)read(pip[0],&flag,sizeof(flag));
                             if (o == -1)
                             {
                                 perror("errore nel dialogo Master/Worker");
@@ -2957,9 +2952,9 @@ int main(int argc, char* argv[])
         size_t fake_write_no = 1;
         if (read_no != 0) fake_read_no = read_no;
         if (write_no != 0) fake_write_no = write_no;
-        media_read_size = (float) total_read_size/fake_read_no;
-        media_write_size = (float) total_write_size/fake_write_no;
-        max_size_reachedMB = (float) max_size_reached/(1024*1024);
+        media_read_size = total_read_size/fake_read_no;
+        media_write_size =  total_write_size/fake_write_no;
+        max_size_reachedMB =  max_size_reached/(1024*1024);
 
     } // elaborazioni per il file delle statistiche
 
