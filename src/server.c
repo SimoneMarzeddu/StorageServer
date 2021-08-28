@@ -2518,9 +2518,10 @@ static void* w_routine (void* arg)
 {
     int fd_pipe = *((int*)arg);
     int fd_c;
-    int end = 0; //valore indicante la terminazione del client
+
     while (1)
     {
+        int end = 0; //valore indicante la terminazione del client
         //un client viene espulso dalla coda secondo la politica fifo
         Pthread_mutex_lock(&coda_mtx);
         fd_c = c_list_pop_worker(coda);
@@ -2993,4 +2994,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: test3var
+// UPDATE: test3var more stress
