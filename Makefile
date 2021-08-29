@@ -54,10 +54,5 @@ test3 : $(TARGETS)
 	chmod +x ./script/test3.sh
 	./script/test3.sh &
 
-#variante del terzo test
-test3var : $(TARGETS)
-	chmod +x ./script/test3_variant.sh
-	./script/test3_variant.sh &
-
 
 

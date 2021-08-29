@@ -6,7 +6,6 @@
 #include <time.h>
 #include <errno.h>
 #include <dirent.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -17,9 +16,8 @@
 #define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108 /* man 7 unix */
 
-int flag_stampa = 0;
-static int num_files = 0;
-int tms;
+int flag_stampa = 0; // se impostato ad 1 attiverà la stampa degli esiti delle operazioni richieste al server
+int tms; // variabile in cui sarà impostato il tempo che intercorre tra due richieste consecutive al server
 
 // il nodo della lista dei comandi:
 typedef struct node
@@ -30,24 +28,7 @@ typedef struct node
     struct node* prec; // puntatore al comando precedente nella lista
 
 } node;
-/*
-int msSleep(long time)
-{
-    if(time < 0) errno = EINVAL;
 
-    int res;
-    struct timespec t;
-    t.tv_sec = time/1000;
-    t.tv_nsec = (time % 1000) * 1000000;
-
-    do
-    {
-        res = nanosleep(&t, &t);
-    }while(res && errno == EINTR);
-
-    return res;
-}
- */
 long isNumber(const char* s)
 {
     char* e = NULL;
@@ -59,8 +40,18 @@ long isNumber(const char* s)
  * dirname -> nome della cartella src
  * dest_dirname -> nome della cartella destinazione per gli overflow
  */
+/**
+ *   @brief Funzione ausiliaria all'esecuzione del comando -w, scorre i files presenti in un dato percorso fino a scriverne n nel server
+ *
+ *   @param dirname nome della cartella src
+ *   @param n   numero di files dei quali è richiesta la scrittura
+ *   @param dest_dirname    nome della cartella destinazione per gli overflow
+ *
+ *   @return //
+ */
 void w_exec (char* dirname, int n, char* dest_dirname)
 {
+    int num_files = 0;
     DIR * dir;
     struct dirent* entry;
 
@@ -156,9 +147,18 @@ void w_exec (char* dirname, int n, char* dest_dirname)
         perror("ERRORE: closedir");
         exit(EXIT_FAILURE);
     }
-} //scorre i files presenti in un dato percorso fino a scriverne n nel server
-void addLast (node** lst, char* cmd, char* arg)
-{
+}
+/**
+ *   @brief Funzione che aggiunge un nodo di comando in coda alla lista di comandi
+ *
+ *   @param lst lista dei comandi
+ *   @param cmd stringa contenente il "nome" del comando
+ *   @param arg stringa contenente gli argomenti del comando
+ *
+ *   @return //
+ */
+//NOTA: l'aggiunta avviene in coda, così che l'ordine di inout dei comandi sia anche quello di esecuzione
+void addLast (node** lst, char* cmd, char* arg) {
     node * new = malloc (sizeof(node)); // spazio per memorizzare il nodo comando
     if (new==NULL)
     {
@@ -202,13 +202,17 @@ void addLast (node** lst, char* cmd, char* arg)
 
     last->next = new;
     new->prec = last;
-} // aggiunge un nodo di comando in coda alla lista di comandi
-/*
- * return 1 <-> la lista parametro contiene il comando cercato
- * return 0 <-> la lista parametro non contiene il comando cercato
+}
+/**
+ *   @brief Funzione che ricerca ed elimina dalla lista di comandi un dato comando
  *
- * NOTA: se il comando è stato trovato e se gli argomenti di questo sono presenti, essi vengono restituiti in "arg"
-*/
+ *   @param lst lista dei comandi
+ *   @param cmd stringa contenente il "nome" del comando
+ *   @param arg stringa contenente gli argomenti del comando
+ *
+ *   @return 1 <-> la lista parametro contiene il comando cercato, 0 <-> la lista parametro non contiene il comando cercato
+ */
+// NOTA: se il comando è stato trovato e se gli argomenti di questo sono presenti, essi vengono restituiti in "arg"
  int containCMD (node** lst, char* cmd, char** arg)
 {
 
@@ -255,6 +259,13 @@ void addLast (node** lst, char* cmd, char* arg)
     }
     return found;
 }
+/**
+ *   @brief Funzione per liberare la memoria allocata per la lista di comandi
+ *
+ *   @param lst lista dei comandi
+ *
+ *   @return //
+ */
 void freeList (node ** lst)
 {
     node * tmp;
@@ -266,17 +277,7 @@ void freeList (node ** lst)
         (*lst)=(*lst)->next;
         free(tmp);
     }
-} // funzione per liberare la memoria allocata per la lista di comandi
-void printList (node ** lst)
-{
-    node * cursor = *lst;
-    while (cursor != NULL)
-    {
-        printf("CMD=%s ARG=%s \n",cursor->cmd,cursor->arg);
-        cursor = cursor->next;
-    }
-
-} // funzione per l'eventuale stampa della lista di comandi (debugging)
+}
 
 int main (int argc, char * argv[])
 {
@@ -298,7 +299,7 @@ int main (int argc, char * argv[])
     char* resolvedPath = NULL; // stringa per il path assoluto
 
     // la lista dei comandi viene popolata secondo gli argomenti di avvio
-    while ((opt = getopt(argc,argv,"hpf:w:W:u:l:D:r:R:d:t:c:")) != -1)
+    while ((opt = (char)getopt(argc,argv,"hpf:w:W:u:l:D:r:R:d:t:c:")) != -1)
     {
         switch (opt)
         {
@@ -479,7 +480,7 @@ int main (int argc, char * argv[])
             if (stat(namedir,&info_dir)==-1)
             {
                 if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                printf("%s non e' una directory valida\n",namedir);
+                printf("ERRORE: %s non e' una directory valida\n",namedir);
             }
             else
             {
@@ -488,7 +489,7 @@ int main (int argc, char * argv[])
                     token1 = strtok_r(NULL,",",&save1);
                     if (token1!=NULL)
                     {
-                        n = isNumber(token1);
+                        n = (int)isNumber(token1);
                     }
                     else n=0;
 
@@ -506,13 +507,13 @@ int main (int argc, char * argv[])
                         else
                         {
                             if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                            printf("Utilizzo : -w dirname[,n]\n");
+                            printf("ERRORE: Utilizzo : -w dirname[,n]\n");
                         }
                 }
                 else
                 {
                         if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                    printf("%s non e' una directory valida\n",namedir);
+                    printf("ERRORE: %s non e' una directory valida\n",namedir);
                 }
             }
 
@@ -558,7 +559,6 @@ int main (int argc, char * argv[])
                                     }
                                     else
                                     {// scrittura nel file appena creato all'interno del server
-                                        num_files++;
                                         //scrittura nel file
                                         if (writeFile(resolvedPath,Dir) == -1)
                                         {
@@ -582,7 +582,6 @@ int main (int argc, char * argv[])
                             }
                             else
                             {// scrittura nel file aperto all'interno del server e già esistente in esso
-                                num_files++;
                                 //scrittura nel file
                                 if (writeFile(resolvedPath,Dir) == -1)
                                 {
@@ -719,7 +718,7 @@ int main (int argc, char * argv[])
             }
 
             int N;
-            if ((N = isNumber(curr->arg))==-1)
+            if ((N = (int)isNumber(curr->arg))==-1)
             {
                 if (flag_stampa==1) printf("OP : -R (leggi N file) Esito : fallimento\n");
                 printf("L'opzione -R vuole un numero come argomento\n");
@@ -887,4 +886,4 @@ int main (int argc, char * argv[])
     return 0;
 }
 
-// UPDATE: test3var more stress
+// UPDATE: commenti aggiornati

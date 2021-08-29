@@ -232,7 +232,6 @@ static void c_list_free (c_list* lst)
  *   @brief Funzione che verifica la presenza di un c_info in una c_list
  *
  *   @param lst  puntatore alla c_list
- *
  *   @param c_info  descrittore della connessione con un client
  *
  *   @return 0 -> esito negativo, 1 -> esito positivo, -1 -> fallimento
@@ -259,7 +258,6 @@ static int c_list_cont_node (c_list* lst, size_t c_info)
  *   @brief Funzione che aggiunge un nodo in testa ad una c_list
  *
  *   @param lst  puntatore alla c_list
- *
  *   @param c_info  descrittore della connessione con un client
  *
  *   @return 0 -> 1 -> esito positivo, -1 -> fallimento
@@ -329,7 +327,6 @@ static int c_list_pop_worker (c_list* lst)
  *   @brief Funzione che elimina un dato descrittore dalla c_list
  *
  *   @param lst  puntatore alla c_list
- *
  *   @param c_info  descrittore della connessione con un client
  *
  *   @return 0 -> esito negativo, 1 -> esito positivo, -1 -> fallimento
@@ -401,9 +398,7 @@ static int c_list_rem_node (c_list* lst, size_t c_info)
  *   @brief Funzione che inizializza un file
  *
  *   @param path  path assoluto del file
- *
  *   @param cnt contenuto del file
- *
  *   @param lo descrittore del lock owner
  *
  *   @return puntatore al file inizializzato, NULL in caso di errore
@@ -608,7 +603,6 @@ static void fifo_free (fifo* lst)
  *   @brief Funzione che esegue la push di un nodo in una coda FIFO
  *
  *   @param lst puntatore alla coda FIFO
- *
  *   @param file1 puntatore alla nodo
  *
  *   @return 1 -> successo, -1 -> fallimento
@@ -644,7 +638,6 @@ static int fifo_push (fifo* lst, fifo_node* file1)
  *   @brief Funzione che rimuove un file da una coda FIFO
  *
  *   @param lst puntatore alla coda FIFO
- *
  *   @param path    path univoco del nodo da rimuovere
  *
  *   @return 0 -> file non trovato, 1 -> successo, -1 -> fallimento
@@ -802,7 +795,6 @@ static void f_list_print (f_list* lst)
  *   @brief Funzione che recupera il puntatore ad un file da una lista di files
  *
  *   @param lst puntatore alla lista
-  *
  *   @param path    path assoluto del file da estrarre
  *
  *   @return puntatore al file, NULL in caso di fallimento
@@ -829,7 +821,6 @@ static file* f_list_get_file (f_list* lst, char* path)
  *   @brief Funzione che determina se un file è presente in una lista di files
  *
  *   @param lst puntatore alla lista
-  *
  *   @param path    path assoluto del file da ricercare
  *
  *   @return 1 -> esito positivo, 0 -> esito negativo, -1 -> errore
@@ -855,7 +846,6 @@ static int f_list_cont_file (f_list* lst, char* path)
  *   @brief Funzione che aggiunge un file ad una lista di files se questa non lo contiene
  *
  *   @param lst puntatore alla lista
-  *
  *   @param file1   puntatore al file
  *
  *   @return 1 -> esito positivo, 0 -> esito negativo, -1 -> errore
@@ -891,7 +881,6 @@ static int f_list_add_head (f_list* lst, file* file1)
  *   @brief Funzione che rimuove un file da una lista di files
  *
  *   @param lst puntatore alla lista
- *
  *   @param path    path assoluto del file da rimuovere
  *
  *   @return puntatore alla copia del file rimosso, NULL in caso di errore
@@ -1048,7 +1037,6 @@ static long long hash_function (const char* str)
  *   @brief funzione che aggiuge un file ad una tabella hash
  *
  *   @param tbl puntatore alla tabella hash
- *
  *   @param file1   puntatore al file
  *
  *   @return 1 -> successo, -1 -> fallimento
@@ -1082,7 +1070,6 @@ static int hash_add_file (hash* tbl, file* file1)
  *   @brief funzione che rimuove un file ad una tabella hash
  *
  *   @param tbl puntatore alla tabella hash
- *
  *   @param file1   puntatore al file
  *
  *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
@@ -1114,7 +1101,6 @@ static file* hash_rem_file1 (hash* tbl, file* file1)
  *   @brief funzione che rimuove un file ad una tabella hash dato il suo path assoluto
  *
  *   @param tbl puntatore alla tabella hash
- *
  *   @param path    path assoluto del file
  *
  *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
@@ -1148,7 +1134,6 @@ static file* hash_rem_file2 (hash* tbl, char* path)
  *   @brief funzione che ottiene il puntatore ad un file di una tabella hash
  *
  *   @param tbl puntatore alla tabella hash
- *
  *   @param path    path assoluto del file
  *
  *   @return puntatore al file richiesto -> successo, NULL -> fallimento
@@ -1173,7 +1158,6 @@ static file* hash_get_file (hash* tbl, char* path)
  *   @brief funzione che ottiene il puntatore ad una lista contenente il file di una tabella hash
  *
  *   @param tbl puntatore alla tabella hash
- *
  *   @param path    path assoluto del file
  *
  *   @return puntatore alla lista richiesta -> successo, NULL -> fallimento
@@ -1194,6 +1178,13 @@ static f_list* hash_get_list (hash* tbl, char* path)
     }
     return NULL;
 }
+/**
+ *   @brief funzione che libera lo spazio allocato per una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @return //
+*/
 static void hash_free (hash* tbl)
 {
     if (tbl == NULL) return;
@@ -1206,6 +1197,13 @@ static void hash_free (hash* tbl)
     free(tbl->lists);
     free(tbl);
 }
+/**
+ *   @brief funzione che stampa un rappresentazione di una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @return //
+*/
 static void hash_print (hash* tbl)
 {
     if(tbl == NULL)
@@ -1224,6 +1222,14 @@ static void hash_print (hash* tbl)
 
     printf("END\n");
 }
+/**
+ *   @brief funzione che individua la presenza di un file in una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *   @param path    path assoluto del file
+ *
+ *   @return -1 -> errore, 0 -> file non trovato, 1 -> successo
+*/
 static int hash_cont_file (hash* tbl, char* path)
 {
     if (tbl == NULL || path == NULL)
@@ -1240,6 +1246,15 @@ static int hash_cont_file (hash* tbl, char* path)
     }
     return -1;
 }
+/**
+ *   @brief funzione che controlla la presenza di un superamento dei limiti massimi di memoria e se presente applica il rimpiazzamento
+ *
+ *   @param tbl puntatore alla tabella hash
+ *   @param path    path assoluto del file che potrebbe aver causato il superamento del limite massimo di memoria
+ *   @param c_info  descrittore del client che ha richiesto l'operazione causante potenziale overflow
+ *
+ *   @return un puntatore ad una f_list contenente i files rimossi, NULL altrimenti
+*/
 static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
 {
     if (tbl == NULL || c_info == 0 || path == NULL)
@@ -1248,27 +1263,27 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
         return NULL;
     }
 
-    f_list* replaced = f_list_init();
+    f_list* replaced = f_list_init(); // inizializzazione della lista output
     if (replaced == NULL)
     {
         errno = ENOMEM;
         return NULL;
     }
 
-    int bool = 0;
-    fifo_node* p_kill_ff = NULL;
+    int bool = 0; // flag per evidenziare l'avvio o meno dell'algoritmo per i rimpiazzamenti
+    fifo_node* p_kill_ff = NULL; // punatatore al nodo della coda fifo che conterrà il path del file potenzialmente rimpiazzabile
 
-    while (curr_size > max_size)
+    while (curr_size > max_size) // fin quando i valori non sono rientrati entro i limiti
     {
-        bool = 1;
-        if (p_kill_ff == NULL) p_kill_ff = queue->tail;
+        bool = 1; // la flag viene impostata  per indicare che l'algoritmo di rimpiazzamento è di fatto partito
+        if (p_kill_ff == NULL) p_kill_ff = queue->tail; // la coda fifo verrà effettivamente percorsa dal primo elemento inserito verso l'ultimo
         if (p_kill_ff == NULL)
         {
             f_list_free(replaced);
             return NULL;
         }
 
-        file* p_kill_file = hash_get_file(storage,p_kill_ff->path);
+        file* p_kill_file = hash_get_file(storage,p_kill_ff->path); // il punatatore al file individuato con politica FIFO viene ottenuto
         if (p_kill_file == NULL)
         {
             f_list_free(replaced);
@@ -1276,7 +1291,8 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
         }
 
         while ((p_kill_file->lock_owner != 0 && p_kill_file->lock_owner != c_info) || (p_kill_ff->path == path))
-        {
+        { // fin quando il file rimovibile individuato non rispetta le caratteristiche per poter essere rimosso esso viene ignorato
+            // il file non deve essere lockato da altri client e inoltre non deve essere quello causa del superamento dei limiti
             p_kill_ff = p_kill_ff->prec;
             if (p_kill_ff == NULL)
             {
@@ -1293,22 +1309,30 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
             }
         }
 
-        file* copy = file_copy(p_kill_file);
+        file* copy = file_copy(p_kill_file); // il file rimovibile può essere rimosso, ma prima viene copiato
         if (copy == NULL) return NULL;
-        p_kill_ff = p_kill_ff->prec;
-        if (hash_rem_file1(storage,p_kill_file) == NULL) return NULL;
-        if (f_list_add_head(replaced,copy) == -1) return NULL;
+        p_kill_ff = p_kill_ff->prec; // il puntatore verso l'ultimo elemento analizzato nella coda fifo viene aggiornato
+        if (hash_rem_file1(storage,p_kill_file) == NULL) return NULL; // il file rimovibile viene rimosso
+        if (f_list_add_head(replaced,copy) == -1) return NULL; // la copia del file rimosso viene inserita nella lista di output
         Pthread_mutex_lock(&stats_mtx);
-        replace_no++;
+        replace_no++;   // le statistiche vengono aggiornate
         Pthread_mutex_unlock(&stats_mtx);
     }
 
     Pthread_mutex_lock(&stats_mtx);
-    if (bool == 1) replace_alg_no++;
-    if (curr_size > max_size_reached) max_size_reached = curr_size;
+    if (bool == 1) replace_alg_no++;// le statistiche vengono aggiornate
+    if (curr_size > max_size_reached) max_size_reached = curr_size;// le statistiche vengono aggiornate
     Pthread_mutex_unlock(&stats_mtx);
     return replaced;
 }
+/**
+ *   @brief funzione che rimuove tutte le lock in una tabella hash dopo la disconnessione del client
+ *
+ *   @param tbl puntatore alla tabella hash
+ *   @param fd_c    descrittore della connessione
+ *
+ *   @return //
+*/
 static void hash_lo_reset (hash* tbl, size_t fd_c)
 {
     if (tbl == NULL) return;
@@ -1345,11 +1369,25 @@ static int isNumber(const char* s, long* n)
     }
     return 0;   // non e' un numero
 }
+/**
+ *   @brief funzione per la gestione dei segnali
+ *
+ *   @param sgnl segnale ricevuto
+ *
+ *   @return //
+*/
 static void t_gstr (int sgnl)
 {
     if (sgnl == SIGINT || sgnl == SIGQUIT) t = 1; //SIGINT,SIGQUIT -> TERMINA SUBITO (GENERA STATISTICHE)
     else if (sgnl == SIGHUP) t = 2; //SIGHUP -> NON ACCETTA NUOVI CLIENT, ASPETTA CHE I CLIENT COLLEGATI CHIUDANO CONNESSIONE
 }
+/**
+ *   @brief funzione per l'aggiornamento del file descriptor massimo
+ *
+ *   @param fdmax descrittore massimo attuale
+ *
+ *   @return file descriptor massimo -> successo, -1 altrimenti
+*/
 static int max_up (fd_set set, int fdmax)
 {
     int i;
@@ -1360,10 +1398,10 @@ static int max_up (fd_set set, int fdmax)
 }
 
 /**
- *   @brief Funzione che permette di fare la read in modo che, se è interrotta da un segnale, riprende
+ *   @brief Funzione che permette di effettuare la read completandola in seguito alla ricezione di un segnale
  *
  *   @param fd     descrittore della connessione
- *   @param msg    puntatore al messaggio da inviare
+ *   @param buf    puntatore al messaggio da inviare
  *
  *   @return Il numero di bytes letti, -1 se c'e' stato un errore
  */
@@ -1392,10 +1430,10 @@ int readn(long fd, void *buf, size_t size) {
 }
 
 /**
- *   @brief Funzione che permette di fare la write in modo che, se è interrotta da un segnale, riprende
+ *   @brief Funzione che permette di effettuare la write completandola in seguito alla ricezione di un segnale
  *
  *   @param fd     descrittore della connessione
- *   @param msg    puntatore al messaggio da inviare
+ *   @param buf    puntatore al messaggio da inviare
  *
  *   @return Il numero di bytes scritti, -1 se c'è stato un errore
  */
@@ -1424,6 +1462,8 @@ int writen(long fd, const void *buf, size_t nbyte){
     return writen;
 }
 
+
+// Le seguenti funzioni sono di fatto speculari a quanto implementato dalla api //
 /* open_FILE : FLAGS
  * 0 -> 00 -> O_CREATE = 0 && O_LOCK = 0
  * 1 -> 01 -> O_CREATE = 0 && O_LOCK = 1
@@ -2022,7 +2062,18 @@ static int remove_File (char* path, size_t c_info)
     }
 
 }
+
 //STRUTTURA DI QUEST: FUN_NAME;ARG1;ARG2;...
+/**
+ *   @brief Funzione che interpreta ed esegue le operazioni richieste dai client
+ *
+ *   @param fd_c    descrittore della connessione
+ *   @param fd_pipe descrittore della pipe
+ *   @param quest   richiesta
+ *   @param end     puntatore alla flag indicante l'avvenuta chiusura di una connessione
+ *
+ *   @return Il numero di bytes scritti, -1 se c'è stato un errore
+ */
 static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
 {
     if (quest == NULL || fd_c < 1 || fd_pipe < 1)
@@ -2063,10 +2114,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
         token = strtok_r(NULL,";",&save);
         int flags = (int) strtol(token,NULL,10);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
 
         // esecuzione della richiesta
         int res;// valore resituito in output dalla openFile di server.c
@@ -2106,10 +2153,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         token = strtok_r(NULL,";",&save);
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
+
         // esecuzione della richiesta
         int res;
         int log_res;
@@ -2147,10 +2191,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         token = strtok_r(NULL,";",&save);
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
 
         // esecuzione della richiesta
         int res;
@@ -2190,10 +2230,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         token = strtok_r(NULL,";",&save);
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
 
         // esecuzione della richiesta
         int res;
@@ -2233,10 +2269,8 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         token = strtok_r(NULL,";",&save);
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
+
+        // esecuzione della richiesta
         int res = remove_File(path,fd_c);
         int log_res;
 
@@ -2279,10 +2313,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         char cnt[MSG_SIZE];
         strcpy(cnt,token);
         size_t cnt_size = strnlen(cnt,MSG_SIZE);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-         */
+
         // esecuzione della richiesta
         errno = 0;
         int log_res;
@@ -2377,10 +2408,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         char cnt[MSG_SIZE];
         strcpy(cnt,token);
         size_t cnt_size = strnlen(cnt,MSG_SIZE);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-         */
 
         // esecuzione della richiesta
         errno = 0;
@@ -2472,13 +2499,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         token = strtok_r(NULL,";",&save);
         char path[UNIX_MAX_STANDARD_FILENAME_LENGHT];
         strcpy(path,token);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t size = (size_t) atoi(token);
-
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-         */
 
         char* buf = malloc(sizeof(char)*MAX_CNT_LEN);
         if (buf == NULL)
@@ -2490,6 +2510,7 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
 
         size_t size;
 
+        // esecuzione della richiesta
         int res = read_File(path,buf,&size,fd_c);
         int log_res;
 
@@ -2529,10 +2550,6 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         // tokenizzazione degli argomenti
         token = strtok_r(NULL,";",&save);
         int N = (int)strtol(token, NULL, 10);
-        /*
-        token = strtok_r(NULL,";",&save);
-        size_t c_info = (size_t) atoi(token);
-        */
 
         int count = 0;
 
@@ -3138,4 +3155,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: test3var more stress
+// UPDATE: commenti aggiornati
