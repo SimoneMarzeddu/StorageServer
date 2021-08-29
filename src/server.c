@@ -10,11 +10,11 @@
 #include <sys/un.h>
 #include <assert.h>
 
-#define MSG_SIZE 2048
+#define MSG_SIZE 2048   // dimensione di alcuni messaggi scambiati tra server ed API
 #define MAX_CNT_LEN 1024 // grandezza massima del contenuto di un file: 1 KB
 #define UNIX_MAX_STANDARD_FILENAME_LENGHT 108 /* man 7 unix */
-#define SOCKET_NAME "./ssocket.sk"
-#define LOG_NAME "./log.txt"
+#define SOCKET_NAME "./ssocket.sk"  // nome di default per il socket
+#define LOG_NAME "./log.txt"    // nome di default per il file di log
 
 /* FILE DI LOG:
  *
@@ -111,22 +111,22 @@ pthread_mutex_t stats_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclus
 static size_t max_size_reached = 0;    // dimensione massima dello storage raggiunta
 static size_t max_size_reachedMB = 0;    // dimensione massima dello storage raggiunta in MB
 static size_t max_no_reached = 0;      // numero massimo di files nello storage reggiunto
-static size_t replace_no = 0;
-static size_t replace_alg_no = 0;
-static size_t read_no = 0;
-static size_t total_read_size = 0;
-static size_t media_read_size = 0;
-static size_t write_no = 0;
-static size_t total_write_size = 0;
-static size_t media_write_size = 0;
-static size_t lock_no = 0;
-static size_t unlock_no = 0;
-static size_t openlock_no = 0;
-static size_t close_no = 0;
+static size_t replace_no = 0;   // numero di rimpiazzamenti per file terminati con successo
+static size_t replace_alg_no = 0;   // numero di volte in cui l'algoritmo di rimpiazzamento è stato attivato
+static size_t read_no = 0;  // numero di operazioni read terminate con successo
+static size_t total_read_size = 0;  // dimensione totale delle letture terminate con successo
+static size_t media_read_size = 0;  // dimensione media delle letture terminate con successo
+static size_t write_no = 0; // numero di operazioni write terminate con successo
+static size_t total_write_size = 0; // dimensione totale delle scritture terminate con successo
+static size_t media_write_size = 0; // dimensione media delle scritture terminate con successo
+static size_t lock_no = 0; // numero di operazioni lock terminate con successo
+static size_t unlock_no = 0; // numero di operazioni unlock terminate con successo
+static size_t openlock_no = 0; // numero di operazioni open con flag O_LOCK == 1 terminate con successo
+static size_t close_no = 0; // numero di operazioni close avvenute con successo
 static size_t max_connections_no = 0;   // numero massimo di connessioni contemporanee raggiunto
 static size_t currconnections_no = 0;   // numero di connessioni correnti
 
-//    FUNZIONI PER MUTUA ESCLUSIONE    //
+//    FUNZIONI PER MUTUA ESCLUSIONE -> Versione vista a lezione   //
 static void Pthread_mutex_lock (pthread_mutex_t* mtx)
 {
     int err;
@@ -149,6 +149,13 @@ static void Pthread_mutex_unlock (pthread_mutex_t* mtx)
 }
 
 //    FUNZIONI PER NODI DI c_info   //
+/**
+ *   @brief Funzione che inizializza un c_node
+ *
+ *   @param c_info  descrittore della connessione con un client
+ *
+ *   @return puntatore al c_node inizializato, NULL in caso di fallimento
+ */
 static c_node* c_node_init (size_t c_info)
 {
     if (c_info == 0)
@@ -174,6 +181,13 @@ static c_node* c_node_init (size_t c_info)
 }
 
 //    FUNZIONI PER LISTE DI NODI DI c_info   // (USATE anche per comunicazione Main Thread/WorkerThread)
+/**
+ *   @brief Funzione che inizializza una lista di c_node
+ *
+ *   @param //
+ *
+ *   @return puntatore alla c_list inizializata, NULL in caso di fallimento
+ */
 static c_list* c_list_init ()
 {
     c_list* tmp = malloc(sizeof(c_list));
@@ -188,6 +202,13 @@ static c_list* c_list_init ()
 
     return tmp;
 }
+/**
+ *   @brief Funzione che libera la memoria allocata per una c_list
+ *
+ *   @param lst  puntatore alla c_list di cui fare la free
+ *
+ *   @return //
+ */
 static void c_list_free (c_list* lst)
 {
     if (lst == NULL)
@@ -207,6 +228,15 @@ static void c_list_free (c_list* lst)
 
     free(lst);
 }
+/**
+ *   @brief Funzione che verifica la presenza di un c_info in una c_list
+ *
+ *   @param lst  puntatore alla c_list
+ *
+ *   @param c_info  descrittore della connessione con un client
+ *
+ *   @return 0 -> esito negativo, 1 -> esito positivo, -1 -> fallimento
+ */
 static int c_list_cont_node (c_list* lst, size_t c_info)
 {
     if (lst == NULL || c_info == 0)
@@ -222,9 +252,18 @@ static int c_list_cont_node (c_list* lst, size_t c_info)
         cursor = cursor->next;
     }
 
-    errno = ENOENT;
+    //errno = ENOENT;
     return 0;
 }
+/**
+ *   @brief Funzione che aggiunge un nodo in testa ad una c_list
+ *
+ *   @param lst  puntatore alla c_list
+ *
+ *   @param c_info  descrittore della connessione con un client
+ *
+ *   @return 0 -> 1 -> esito positivo, -1 -> fallimento
+ */
 static int c_list_add_head (c_list* lst, size_t c_info)
 {
     if (lst == NULL || c_info == 0)
@@ -248,35 +287,13 @@ static int c_list_add_head (c_list* lst, size_t c_info)
 
     return 1;
 }
-/*
-static int c_list_pop (c_list* lst)
-{
-    if (lst == NULL)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    if (lst->tail == NULL) return 0;
-
-    size_t out = lst->tail->c_info;
-
-    if (lst->head == lst->tail)
-    {
-        free(lst->tail);
-        lst->tail = NULL;
-        lst->head = NULL;
-        return out;
-    }
-    else
-    {
-        c_node* tmp = lst->tail;
-        lst->tail = lst->tail->prec;
-        lst->tail->next = NULL;
-        free(tmp);
-        return out;
-    }
-}
-*/
+/**
+ *   @brief Funzione chiamata dai thread worker per ottenere il descrittore della connessione con il prossimo client
+ *
+ *   @param lst  puntatore alla c_list
+ *
+ *   @return int: descrittore -> successo, -2 -> fallimento
+ */
 static int c_list_pop_worker (c_list* lst)
 {
     if (lst == NULL)
@@ -286,7 +303,7 @@ static int c_list_pop_worker (c_list* lst)
     }
     while (lst->head == NULL)
     {
-        pthread_cond_wait(&wait_coda,&coda_mtx);
+        pthread_cond_wait(&wait_coda,&coda_mtx); // attesa del segnale inviato dal thread main
     }
 
     size_t out = lst->tail->c_info;
@@ -308,6 +325,15 @@ static int c_list_pop_worker (c_list* lst)
     }
 
 }
+/**
+ *   @brief Funzione che elimina un dato descrittore dalla c_list
+ *
+ *   @param lst  puntatore alla c_list
+ *
+ *   @param c_info  descrittore della connessione con un client
+ *
+ *   @return 0 -> esito negativo, 1 -> esito positivo, -1 -> fallimento
+ */
 static int c_list_rem_node (c_list* lst, size_t c_info)
 {
     if (lst == NULL || c_info == 0)
@@ -371,6 +397,17 @@ static int c_list_rem_node (c_list* lst, size_t c_info)
 }
 
 //    FUNZIONI PER AMMINISTRARE I FILE    //
+/**
+ *   @brief Funzione che inizializza un file
+ *
+ *   @param path  path assoluto del file
+ *
+ *   @param cnt contenuto del file
+ *
+ *   @param lo descrittore del lock owner
+ *
+ *   @return puntatore al file inizializzato, NULL in caso di errore
+ */
 static file* file_init (char* path, char* cnt, size_t lo)
 {
     if (path == NULL || cnt == NULL)
@@ -415,6 +452,13 @@ static file* file_init (char* path, char* cnt, size_t lo)
 
     return tmp;
 }
+/**
+ *   @brief Funzione che libera la memoria allocata per un file
+ *
+ *   @param file1  puntatore al file
+ *
+ *   @return //
+ */
 static void file_free (file* file1)
 {
     if (file1 == NULL)  return;
@@ -423,6 +467,13 @@ static void file_free (file* file1)
     free(file1->cnt);
     free(file1);
 }
+/**
+ *   @brief Funzione che effettua la copia di un file
+ *
+ *   @param file1  puntatore al file
+ *
+ *   @return puntatore al file copia, NULL per fallimento
+ */
 static file* file_copy (file* file1)
 {
     if (file1 == NULL) return NULL;
@@ -462,6 +513,13 @@ static file* file_copy (file* file1)
 }
 
 //    FUNZIONI PER AMMINISTRARE LA POLITICA FIFO DELLA "FIFO* QUEUE"   //
+/**
+ *   @brief Funzione che inizializza un nodo per la coda FIFO
+ *
+ *   @param path  path assoluto univoco del file/nodo
+ *
+ *   @return puntatore al fifo_node, NULL per fallimento
+ */
 static fifo_node* fifo_node_init (char* path)
 {
     fifo_node* tmp = malloc(sizeof(fifo_node));
@@ -483,6 +541,13 @@ static fifo_node* fifo_node_init (char* path)
 
     return tmp;
 }
+/**
+ *   @brief Funzione che libera lo spazio allocato per un nodo per la coda FIFO
+ *
+ *   @param node1  puntatore al fifo_node
+ *
+ *   @return //
+ */
 static void fifo_node_free (fifo_node* node1)
 {
     if (node1 == NULL) return;
@@ -490,6 +555,13 @@ static void fifo_node_free (fifo_node* node1)
     free(node1);
 }
 
+/**
+ *   @brief Funzione che inizializza una coda FIFO
+ *
+ *   @param //
+ *
+ *   @return puntatore alla coda FIFO, NULL in caso di fallimento
+ */
 static fifo* fifo_init ()
 {
     fifo* tmp = malloc(sizeof(fifo));
@@ -504,6 +576,13 @@ static fifo* fifo_init ()
 
     return tmp;
 }
+/**
+ *   @brief Funzione libera lo spazio allocato per una coda FIFO
+ *
+ *   @param puntatore alla coda FIFO
+ *
+ *   @return //
+ */
 static void fifo_free (fifo* lst)
 {
     if (lst == NULL)
@@ -525,6 +604,15 @@ static void fifo_free (fifo* lst)
 
     free(lst);
 }
+/**
+ *   @brief Funzione che esegue la push di un nodo in una coda FIFO
+ *
+ *   @param lst puntatore alla coda FIFO
+ *
+ *   @param file1 puntatore alla nodo
+ *
+ *   @return 1 -> successo, -1 -> fallimento
+ */
 static int fifo_push (fifo* lst, fifo_node* file1)
 {
     Pthread_mutex_lock(&queue_mtx);
@@ -552,48 +640,15 @@ static int fifo_push (fifo* lst, fifo_node* file1)
 
     return 1;
 }
-/*
-static char* fifo_pop (fifo* lst)
-{
-    Pthread_mutex_lock(&queue_mtx);
-
-    if (lst == NULL || lst->tail == NULL)
-    {
-        errno = EINVAL;
-        Pthread_mutex_unlock(&queue_mtx);
-        return NULL;
-    }
-
-    size_t path_len = strnlen(lst->tail->path,UNIX_MAX_STANDARD_FILENAME_LENGHT);
-    char* path = malloc(sizeof(char)*path_len);
-    if (path == NULL)
-    {
-        errno = ENOMEM;
-        free(path);
-        Pthread_mutex_unlock(&queue_mtx);
-        return NULL;
-    }
-    strcpy(path,lst->tail->path);
-
-    if (lst->head == lst->tail)
-    {
-        fifo_node_free(lst->tail);
-        lst->tail = NULL;
-        lst->head = NULL;
-        Pthread_mutex_unlock(&queue_mtx);
-        return path;
-    }
-    else
-    {
-        fifo_node* tmp = lst->tail;
-        lst->tail = lst->tail->prec;
-        lst->tail->next = NULL;
-        fifo_node_free(tmp);
-        Pthread_mutex_unlock(&queue_mtx);
-        return path;
-    }
-}
-*/
+/**
+ *   @brief Funzione che rimuove un file da una coda FIFO
+ *
+ *   @param lst puntatore alla coda FIFO
+ *
+ *   @param path    path univoco del nodo da rimuovere
+ *
+ *   @return 0 -> file non trovato, 1 -> successo, -1 -> fallimento
+ */
 static int fifo_rem_file (fifo* lst, char* path)
 {
     Pthread_mutex_lock(&queue_mtx);
@@ -607,9 +662,9 @@ static int fifo_rem_file (fifo* lst, char* path)
 
     if (lst->head == NULL)
     {
-        errno = ENOENT;
+        //errno = ENOENT;
         Pthread_mutex_unlock(&queue_mtx);
-        return -1;
+        return 0;
     }
 
     fifo_node * cursor = lst->head;
@@ -659,36 +714,19 @@ static int fifo_rem_file (fifo* lst, char* path)
         cursor = cursor->next;
     }
 
-    errno = ENOENT;
+    //errno = ENOENT;
     Pthread_mutex_unlock(&queue_mtx);
-    return -1;
+    return 0;
 }
-/*
-static void fifo_print (fifo* lst)
-{
-    if (lst == NULL)
-    {
-        printf("NULL\n");
-        return;
-    }
-
-    printf("%lu ||  ", curr_no);
-
-    fifo_node* cursor = lst->head;
-
-    while (cursor != NULL)
-    {
-        printf("%s <-> ", cursor->path);
-        cursor = cursor->next;
-    }
-
-    printf("END\n");
-
-    return;
-}
-*/
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
+/**
+ *   @brief Funzione che inizializza una lista di files
+ *
+ *   @param //
+ *
+ *   @return puntatore alla lista, NULL per fallimento
+ */
 static f_list* f_list_init ()
 {
     f_list* tmp = malloc(sizeof(f_list));
@@ -705,6 +743,13 @@ static f_list* f_list_init ()
 
     return tmp;
 }
+/**
+ *   @brief Funzione che libera lo spazio allocato per una lista di files
+ *
+ *   @param puntatore alla lista
+ *
+ *   @return //
+ */
 static void f_list_free (f_list* lst)
 {
     if (lst == NULL)
@@ -726,6 +771,13 @@ static void f_list_free (f_list* lst)
 
     free(lst);
 }
+/**
+ *   @brief Funzione che stampa una rappresentazione di una lista di files
+ *
+ *   @param puntatore alla lista
+ *
+ *   @return //
+ */
 static void f_list_print (f_list* lst)
 {
     if (lst == NULL)
@@ -746,6 +798,15 @@ static void f_list_print (f_list* lst)
 
     printf("END\n");
 }
+/**
+ *   @brief Funzione che recupera il puntatore ad un file da una lista di files
+ *
+ *   @param lst puntatore alla lista
+  *
+ *   @param path    path assoluto del file da estrarre
+ *
+ *   @return puntatore al file, NULL in caso di fallimento
+ */
 static file* f_list_get_file (f_list* lst, char* path)
 {
     if (lst == NULL || path == NULL )
@@ -764,6 +825,15 @@ static file* f_list_get_file (f_list* lst, char* path)
 
     return NULL;
 }
+/**
+ *   @brief Funzione che determina se un file è presente in una lista di files
+ *
+ *   @param lst puntatore alla lista
+  *
+ *   @param path    path assoluto del file da ricercare
+ *
+ *   @return 1 -> esito positivo, 0 -> esito negativo, -1 -> errore
+ */
 static int f_list_cont_file (f_list* lst, char* path)
 {
     if (lst == NULL || path == NULL)
@@ -781,6 +851,15 @@ static int f_list_cont_file (f_list* lst, char* path)
 
     return 0;
 }
+/**
+ *   @brief Funzione che aggiunge un file ad una lista di files se questa non lo contiene
+ *
+ *   @param lst puntatore alla lista
+  *
+ *   @param file1   puntatore al file
+ *
+ *   @return 1 -> esito positivo, 0 -> esito negativo, -1 -> errore
+ */
 static int f_list_add_head (f_list* lst, file* file1)
 {
     if (lst == NULL || file1 == NULL)
@@ -808,6 +887,15 @@ static int f_list_add_head (f_list* lst, file* file1)
     lst->size++;
     return 1;
 }
+/**
+ *   @brief Funzione che rimuove un file da una lista di files
+ *
+ *   @param lst puntatore alla lista
+ *
+ *   @param path    path assoluto del file da rimuovere
+ *
+ *   @return puntatore alla copia del file rimosso, NULL in caso di errore
+ */
 static file* f_list_rem_file (f_list* lst, char* path)
 {
     if (lst == NULL || path == NULL)
@@ -818,7 +906,7 @@ static file* f_list_rem_file (f_list* lst, char* path)
 
     if (lst->head == NULL)
     {
-        errno = ENOENT;
+        //errno = ENOENT;
         return NULL;
     }
     file* cursor = lst->head;
@@ -870,11 +958,18 @@ static file* f_list_rem_file (f_list* lst, char* path)
         cursor = cursor->next;
     }
 
-    errno = ENOENT;
+    //errno = ENOENT;
     return NULL;
 }
 
 //    FUNZIONI PER AMMINISTRARE TABELLE HASH    //
+/**
+ *   @brief funzione che inizializza una tabella hash
+ *
+ *   @param lst_no  numero di liste componenti la tabella hash
+ *
+ *   @return puntatore alla tabella hash, NULL in caso di errore
+*/
 static hash* hash_init (size_t lst_no)
 {
     if (lst_no == 0)
@@ -921,6 +1016,13 @@ static hash* hash_init (size_t lst_no)
 
     return tmp;
 }
+/**
+ *   @brief funzione restituisce un valore utile alla determinazione dell'indice in cui un dato file sarà inserito nella tabella hash
+ *
+ *   @param str stringa in base alla quale sarà calcolato l'output
+ *
+ *   @return valore di cui si farà poi il %list_no per ottenere l'indice, -1 in caso di errore
+*/
 static long long hash_function (const char* str)
 {
     if (str == NULL)
@@ -942,6 +1044,15 @@ static long long hash_function (const char* str)
     }
     return h_v;
 }
+/**
+ *   @brief funzione che aggiuge un file ad una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @param file1   puntatore al file
+ *
+ *   @return 1 -> successo, -1 -> fallimento
+*/
 static int hash_add_file (hash* tbl, file* file1)
 {
     if (tbl == NULL || file1 == NULL)
@@ -967,6 +1078,15 @@ static int hash_add_file (hash* tbl, file* file1)
 
    return -1;
 }
+/**
+ *   @brief funzione che rimuove un file ad una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @param file1   puntatore al file
+ *
+ *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
+*/
 static file* hash_rem_file1 (hash* tbl, file* file1)
 {
     if (tbl == NULL || file1 == NULL)
@@ -990,6 +1110,15 @@ static file* hash_rem_file1 (hash* tbl, file* file1)
 
     return NULL;
 }
+/**
+ *   @brief funzione che rimuove un file ad una tabella hash dato il suo path assoluto
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @param path    path assoluto del file
+ *
+ *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
+*/
 static file* hash_rem_file2 (hash* tbl, char* path)
 {
     if (tbl == NULL || path == NULL)
@@ -1015,6 +1144,15 @@ static file* hash_rem_file2 (hash* tbl, char* path)
 
     return NULL;
 }
+/**
+ *   @brief funzione che ottiene il puntatore ad un file di una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @param path    path assoluto del file
+ *
+ *   @return puntatore al file richiesto -> successo, NULL -> fallimento
+*/
 static file* hash_get_file (hash* tbl, char* path)
 {
     if (tbl == NULL || path == NULL)
@@ -1031,6 +1169,15 @@ static file* hash_get_file (hash* tbl, char* path)
     }
     return NULL;
 }
+/**
+ *   @brief funzione che ottiene il puntatore ad una lista contenente il file di una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @param path    path assoluto del file
+ *
+ *   @return puntatore alla lista richiesta -> successo, NULL -> fallimento
+*/
 static f_list* hash_get_list (hash* tbl, char* path)
 {
     if (tbl == NULL || path == NULL)
@@ -1221,7 +1368,8 @@ static int max_up (fd_set set, int fdmax)
  *   @return Il numero di bytes letti, -1 se c'e' stato un errore
  */
 int readn(long fd, void *buf, size_t size) {
-    int readn = 0, r = 0;
+    int readn = 0;
+    int r = 0;
 
     while ( readn < size ){
 
@@ -1252,7 +1400,8 @@ int readn(long fd, void *buf, size_t size) {
  *   @return Il numero di bytes scritti, -1 se c'è stato un errore
  */
 int writen(long fd, const void *buf, size_t nbyte){
-    int writen = 0, w = 0;
+    int writen = 0;
+    int w = 0;
 
     while ( writen < nbyte ){
         if ( (w = (int)write((int)fd, buf, nbyte) ) == -1 ){

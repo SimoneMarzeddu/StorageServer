@@ -1,4 +1,4 @@
-max_no=50
-max_size=1000
-thread_no=4
-socket_name=./jotaro.sk
+max_no=100
+max_size=33554432
+thread_no=8
+socket_name=./ssocket.sk

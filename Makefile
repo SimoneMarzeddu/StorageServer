@@ -31,7 +31,7 @@ clean :
 #ripulisce tutto
 #*~ ripulisce i files residui di emacs
 cleanall :
-	-rm -f $(TARGETS) objs/*.o lib/*.a tmp/* *~
+	-rm -f $(TARGETS) objs/*.o lib/*.a log.txt *.sk *~
 
 #primo test
 test1 : $(TARGETS)
