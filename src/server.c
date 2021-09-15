@@ -2754,23 +2754,23 @@ int main(int argc, char* argv[])
         // parsing file config.txt -- attributo=valore -- se trovo errore uso attributi di default
         if (path_config != NULL)
         {
-            char string[200]; //->str
-            FILE *f_point; //->fp
-            f_point = fopen(path_config, "r");
+            char string[200];
+            FILE *f_point;
+            f_point = fopen(path_config, "r"); // apertura del file di config
             if (f_point == NULL)
             {
                 perror("Errore nell'apertura del file di configurazione");
                 exit(EXIT_FAILURE);
             }
 
-            char campo[100]; // campo da configurare ->arg
-            char valore[100]; // valore del campo ->val
+            char campo[100]; // campo da configurare
+            char valore[100]; // valore del campo
             while (fgets(string, 200, f_point) != NULL)
             {
                 if (string[0] != '\n')
                 {
                     int nf;
-                    nf = sscanf(string, "%[^=]=%s", campo, valore);
+                    nf = sscanf(string, "%[^=]=%s", campo, valore); // scansione dei due campi attesi ad ogni riga valida (campo -> scansione sino a '=' / valore -> scansione dopo '=')
 
                     if (nf != 2)
                     {

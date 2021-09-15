@@ -2,7 +2,7 @@ CC 			= gcc
 CFLAGS		= -g -Wall
 TARGETS		= server client
 
-.PHONY: all clean cleanall test1 test2 test2var test3
+.PHONY: all clean cleanall test1 test2 test2var test3 test3var
 
 #genera tutti gli eseguibili
 all : $(TARGETS)
