@@ -49,25 +49,6 @@ typedef struct sclist
     c_node* tail;
 } c_list;
 
-typedef struct sfile
-{
-    char* path;
-    char* cnt;
-    c_list* whoop;
-    size_t lock_owner;
-    size_t op;
-    struct sfile* next;
-    struct sfile* prec;
-} file;
-
-typedef struct sfilelst
-{
-    file* head;
-    file* tail;
-    size_t size;
-    pthread_mutex_t mtx;
-}f_list;
-
 typedef struct sfifonode
 {
     char* path;
@@ -81,6 +62,26 @@ typedef struct sfifo
     fifo_node* tail;
 } fifo;
 
+typedef struct sfile
+{
+    char* path;
+    char* cnt;
+    c_list* whoop;
+    size_t lock_owner;
+    size_t op;
+    struct sfile* next;
+    struct sfile* prec;
+    fifo_node* queue_pointer;
+} file;
+
+typedef struct sfilelst
+{
+    file* head;
+    file* tail;
+    size_t size;
+    pthread_mutex_t mtx;
+}f_list;
+
 typedef struct shash
 {
     f_list** lists;
@@ -88,6 +89,14 @@ typedef struct shash
 }hash;
 
 //  VARIABILI GLOBALI SULLA GESTIONE DELLO STORAGE  //
+
+/*
+ * 0 -> FIFO
+ * 1 -> LRU
+ * 2 -> LFU
+*/
+static size_t politic = 0;
+
 static size_t thread_no;    // numero di thread worker del server
 static size_t max_size;    // dimensione massima dello storage
 static size_t max_no;      // numero massimo di files nello storage
@@ -444,6 +453,7 @@ static file* file_init (char* path, char* cnt, size_t lo)
 
     tmp->next = NULL;
     tmp->prec = NULL;
+    tmp->queue_pointer = NULL;
 
     return tmp;
 }
@@ -703,6 +713,88 @@ static int fifo_rem_file (fifo* lst, char* path)
                 Pthread_mutex_unlock(&queue_mtx);
                 return 1;
             }
+        }
+        cursor = cursor->next;
+    }
+
+    //errno = ENOENT;
+    Pthread_mutex_unlock(&queue_mtx);
+    return 0;
+}
+
+//    FUNZIONI PER AMMINISTRARE ALTRE POLITICHE    //
+
+static int queue_lru(fifo_node* node)
+{
+    Pthread_mutex_lock(&queue_mtx);
+
+    if (queue == NULL || node == NULL)
+    {
+        errno = EINVAL;
+        Pthread_mutex_unlock(&queue_mtx);
+        return -1;
+    }
+
+    if (queue->head == node )
+    {
+        Pthread_mutex_unlock(&queue_mtx);
+        return 1;
+    }
+
+    if (queue->tail == node)
+    {
+        queue->tail->prec->next = NULL;
+        queue->tail = queue->tail->prec;
+    }
+    queue->head->prec = node;
+    node->next = queue->head;
+    queue->head = node;
+
+    Pthread_mutex_unlock(&queue_mtx);
+    return 1;
+}
+
+static int queue_lru2(char* path)
+{
+    Pthread_mutex_lock(&queue_mtx);
+
+    if (queue == NULL || path == NULL)
+    {
+        errno = EINVAL;
+        Pthread_mutex_unlock(&queue_mtx);
+        return -1;
+    }
+
+    if (queue->head == NULL)
+    {
+        //errno = ENOENT;
+        Pthread_mutex_unlock(&queue_mtx);
+        return 0;
+    }
+
+    fifo_node * cursor = queue->head;
+    if (!strncmp(cursor->path,path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
+    {
+        Pthread_mutex_unlock(&queue_mtx);
+        return 1;
+    }
+
+    while (cursor != NULL)
+    {
+        if (!strncmp(cursor->path,path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
+        {
+            if (!strncmp(queue->tail->path, path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
+            {
+                queue->tail->prec->next = NULL;
+                queue->tail = queue->tail->prec;
+            }
+            queue->head->prec = cursor;
+            cursor->next = queue->head;
+            queue->head = cursor;
+
+            Pthread_mutex_unlock(&queue_mtx);
+            return 1;
+
         }
         cursor = cursor->next;
     }
@@ -1053,6 +1145,8 @@ static int hash_add_file (hash* tbl, file* file1)
     if(hsh != -1 && f_list_add_head(tbl->lists[hsh],file1))
     {
         fifo_node* newfile_placeholder = fifo_node_init(file1->path);
+        file1->queue_pointer = newfile_placeholder;
+
         if (fifo_push(queue,newfile_placeholder))
         {
             Pthread_mutex_lock(&stats_mtx);
@@ -1312,7 +1406,16 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
         file* copy = file_copy(p_kill_file); // il file rimovibile può essere rimosso, ma prima viene copiato
         if (copy == NULL) return NULL;
         p_kill_ff = p_kill_ff->prec; // il puntatore verso l'ultimo elemento analizzato nella coda fifo viene aggiornato
-        if (hash_rem_file1(storage,p_kill_file) == NULL) return NULL; // il file rimovibile viene rimosso
+
+        f_list* p_kill_list = hash_get_list(storage,p_kill_ff->path);
+        Pthread_mutex_lock(&p_kill_list->mtx);
+        if (hash_rem_file1(storage,p_kill_file) == NULL)
+        {
+            Pthread_mutex_unlock(&p_kill_list->mtx);
+            return NULL; // il file rimovibile viene rimosso
+        }
+        Pthread_mutex_unlock(&p_kill_list->mtx);
+
         if (f_list_add_head(replaced,copy) == -1) return NULL; // la copia del file rimosso viene inserita nella lista di output
         Pthread_mutex_lock(&stats_mtx);
         replace_no++;   // le statistiche vengono aggiornate
@@ -1505,6 +1608,8 @@ static int open_File (char* path, int flags, size_t c_info)
                 }
                 tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
+
+                if (politic == 1) queue_lru(tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1540,8 +1645,9 @@ static int open_File (char* path, int flags, size_t c_info)
                     return -1;
                 }
                 tmp->op = 1;
-
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
+
+                if (politic == 1) queue_lru(tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1685,6 +1791,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
             }
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
+            if (politic == 1) queue_lru(tmp->queue_pointer);
             return 0;
         }
         else
@@ -1734,6 +1841,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     if(f_list_add_head(out, copy) == -1) return NULL;
                     if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
+                    if (politic == 1) queue_lru(cursor->queue_pointer);
                 }
                 cursor = cursor->next;
             }
@@ -1773,6 +1881,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     }
                     pkd++;
                     r_num++;
+                    if (politic == 1) queue_lru(cursor->queue_pointer);
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -1846,9 +1955,10 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
 
+    Pthread_mutex_unlock(&(tmp_lst->mtx));
     f_list* out = hash_replace(storage,path,c_info);
 
-    Pthread_mutex_unlock(&(tmp_lst->mtx));
+    if (politic == 1) queue_lru(tmp->queue_pointer);
     return out;
 
 }
@@ -1913,8 +2023,10 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
 
-    f_list* out = hash_replace(storage,path,c_info);
     Pthread_mutex_unlock(&(tmp_lst->mtx));
+    f_list* out = hash_replace(storage,path,c_info);
+
+    if (politic == 1) queue_lru(tmp->queue_pointer);
     return out;
 }
 static int lock_File (char* path, size_t c_info)
@@ -1945,6 +2057,7 @@ static int lock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
+        if (politic == 1) queue_lru(tmp->queue_pointer);
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1979,6 +2092,7 @@ static int unlock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
+        if (politic == 1) queue_lru(tmp->queue_pointer);
         return 0;
     }
     else
@@ -2017,6 +2131,7 @@ static int close_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
+        if (politic == 1) queue_lru(tmp->queue_pointer);
         return 0;
     }
     else
@@ -2821,15 +2936,38 @@ int main(int argc, char* argv[])
                                     }
                                     else max_size = (size_t) n;
                                 }
-
+                                    else
+                                    if (strcmp(campo, "replace_politic") == 0)
+                                    {
+                                        if (strcmp(valore,"FIFO") == 0)
+                                        {
+                                            politic = 0;
+                                        }
+                                        else
+                                        if (strcmp(valore,"LRU") == 0)
+                                        {
+                                            politic = 1;
+                                        }
+                                        else
+                                        if (strcmp(valore,"LFU") == 0)
+                                        {
+                                            politic = 2;
+                                        }
+                                        else
+                                        {
+                                            printf("Errore di Configurazione : politiche ammesse: FIFO, politic, politic\n");
+                                            printf("Il Server è stato avviato con parametri DEFAULT\n");
+                                            break;
+                                        }
+                                    }
                 }
             }
             fclose(f_point);
         }
         else printf("Server avviato con parametri di DEFAULT\n");
-        printf("Server INFO: socket_name:%s / num_thread:%lu / max_files:%lu / max_size:%lu\n", socket_name, thread_no,
+        printf("Server INFO: socket_name:%s / num_thread:%lu / max_files:%lu / max_size:%lu / politic: %lu\n", socket_name, thread_no,
                max_no,
-               max_size);
+               max_size,politic);
     } // parsing del file di config
 
     {
