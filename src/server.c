@@ -54,6 +54,7 @@ typedef struct sfifonode
     char* path;
     struct sfifonode* next;
     struct sfifonode* prec;
+    size_t ref_no;
 }fifo_node;
 
 typedef struct sfifo
@@ -543,6 +544,7 @@ static fifo_node* fifo_node_init (char* path)
         return NULL;
     }
     strcpy(tmp->path,path);
+    tmp->ref_no = 0;
 
     return tmp;
 }
@@ -722,6 +724,29 @@ static int fifo_rem_file (fifo* lst, char* path)
     return 0;
 }
 
+static void fifo_print (fifo* lst)
+{
+    Pthread_mutex_lock(&queue_mtx);
+
+    if (lst == NULL || lst->head == NULL)
+    {
+        errno = EINVAL;
+        Pthread_mutex_unlock(&queue_mtx);
+        return;
+    }
+
+    printf("\nSTART QUEUE \n");
+    fifo_node* cursor = lst->head;
+    while (cursor != NULL)
+    {
+        printf("%s ->\n",cursor->path);
+        cursor = cursor->next;
+    }
+    printf("\nEND QUEUE \n");
+
+    Pthread_mutex_unlock(&queue_mtx);
+}
+
 //    FUNZIONI PER AMMINISTRARE ALTRE POLITICHE    //
 
 static int queue_lru(fifo_node* node)
@@ -746,6 +771,12 @@ static int queue_lru(fifo_node* node)
         queue->tail->prec->next = NULL;
         queue->tail = queue->tail->prec;
     }
+    else
+    {
+        node->next->prec = node->prec;
+        node->prec->next = node->next;
+    }
+
     queue->head->prec = node;
     node->next = queue->head;
     queue->head = node;
@@ -753,56 +784,52 @@ static int queue_lru(fifo_node* node)
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
 }
-
-static int queue_lru2(char* path)
+static int queue_lfu(fifo_node* node)
 {
     Pthread_mutex_lock(&queue_mtx);
 
-    if (queue == NULL || path == NULL)
+    if (queue == NULL || node == NULL)
     {
         errno = EINVAL;
         Pthread_mutex_unlock(&queue_mtx);
         return -1;
     }
 
-    if (queue->head == NULL)
-    {
-        //errno = ENOENT;
-        Pthread_mutex_unlock(&queue_mtx);
-        return 0;
-    }
+    node->ref_no++;
 
-    fifo_node * cursor = queue->head;
-    if (!strncmp(cursor->path,path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
-    {
-        Pthread_mutex_unlock(&queue_mtx);
-        return 1;
-    }
+    fifo_node* aux = NULL;
 
-    while (cursor != NULL)
+    while(node->prec != NULL && node->prec->ref_no < node->ref_no)
     {
-        if (!strncmp(cursor->path,path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
+        if (node->prec->prec != NULL)
         {
-            if (!strncmp(queue->tail->path, path,UNIX_MAX_STANDARD_FILENAME_LENGHT))
-            {
-                queue->tail->prec->next = NULL;
-                queue->tail = queue->tail->prec;
-            }
-            queue->head->prec = cursor;
-            cursor->next = queue->head;
-            queue->head = cursor;
-
-            Pthread_mutex_unlock(&queue_mtx);
-            return 1;
-
+            node->prec->prec->next = node;
+            aux = node->prec->prec;
+            node->prec->prec = node;
         }
-        cursor = cursor->next;
+        else
+        {
+            queue->head = node;
+        }
+        if (node->next != NULL)
+        {
+            node->next->prec = node->prec;
+        }
+        else
+        {
+            queue->tail = node->prec;
+        }
+        node->prec->next = node->next;
+        node->next = node->prec;
+        node->prec = aux;
+        aux = NULL;
+
     }
 
-    //errno = ENOENT;
     Pthread_mutex_unlock(&queue_mtx);
-    return 0;
+    return 1;
 }
+
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
 /**
@@ -1357,6 +1384,8 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
         return NULL;
     }
 
+    //fifo_print(queue);
+
     f_list* replaced = f_list_init(); // inizializzazione della lista output
     if (replaced == NULL)
     {
@@ -1610,6 +1639,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
+                if (politic == 2) queue_lfu(tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1648,6 +1678,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
+                if (politic == 2) queue_lfu(tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1792,6 +1823,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
             if (politic == 1) queue_lru(tmp->queue_pointer);
+            if (politic == 2) queue_lfu(tmp->queue_pointer);
             return 0;
         }
         else
@@ -1842,6 +1874,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
+                    if (politic == 2) queue_lfu(cursor->queue_pointer);
                 }
                 cursor = cursor->next;
             }
@@ -1882,6 +1915,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     pkd++;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
+                    if (politic == 2) queue_lfu(cursor->queue_pointer);
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -1959,6 +1993,7 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
+    if (politic == 2) queue_lfu(tmp->queue_pointer);
     return out;
 
 }
@@ -2027,6 +2062,7 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
+    if (politic == 2) queue_lfu(tmp->queue_pointer);
     return out;
 }
 static int lock_File (char* path, size_t c_info)
@@ -2058,6 +2094,7 @@ static int lock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(tmp->queue_pointer);
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2093,6 +2130,7 @@ static int unlock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(tmp->queue_pointer);
         return 0;
     }
     else
@@ -2132,6 +2170,7 @@ static int close_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(tmp->queue_pointer);
         return 0;
     }
     else
@@ -2955,7 +2994,7 @@ int main(int argc, char* argv[])
                                         }
                                         else
                                         {
-                                            printf("Errore di Configurazione : politiche ammesse: FIFO, politic, politic\n");
+                                            printf("Errore di Configurazione : politiche ammesse: FIFO, LRU, LFU\n");
                                             printf("Il Server è stato avviato con parametri DEFAULT\n");
                                             break;
                                         }
@@ -3050,6 +3089,27 @@ int main(int argc, char* argv[])
             return -1;
         }
 
+        // DA TOGLIERE
+        {
+            /*
+            printf("\nTEST DA TOGLIERE\n");
+            fifo_node* f1 = fifo_node_init("f1");
+            fifo_node* f2 = fifo_node_init("f2");
+            fifo_node* f3 = fifo_node_init("f3");
+            fifo_node* f4 = fifo_node_init("f4");
+            fifo_push(queue,f1);
+            fifo_push(queue,f2);
+            fifo_push(queue,f3);
+            fifo_push(queue,f4);
+            fifo_print(queue);
+            queue_lfu(f1);
+            queue_lfu(f2);
+            queue_lfu(f3);
+            queue_lfu(f1);
+            fifo_print(queue);
+            printf("\nTEST DA TOGLIERE\n");
+            */
+        }
         // FILE DI LOG
         log_file = fopen(LOG_NAME,"w"); // apro il file di log in scrittura
         fflush(log_file);   // ripulisco il file aperto da precedenti scritture
