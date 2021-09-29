@@ -784,51 +784,65 @@ static int queue_lru(fifo_node* node)
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
 }
-static int queue_lfu(fifo_node* node)
+static int queue_add_tail (fifo* lst, fifo_node* file1)
 {
     Pthread_mutex_lock(&queue_mtx);
 
-    if (queue == NULL || node == NULL)
+    if (lst == NULL || file1 == NULL)
     {
         errno = EINVAL;
         Pthread_mutex_unlock(&queue_mtx);
         return -1;
     }
 
-    node->ref_no++;
-
-    fifo_node* aux = NULL;
-
-    while(node->prec != NULL && node->prec->ref_no < node->ref_no)
+    if (lst->head == NULL)
     {
-        if (node->prec->prec != NULL)
-        {
-            node->prec->prec->next = node;
-            aux = node->prec->prec;
-            node->prec->prec = node;
-        }
-        else
-        {
-            queue->head = node;
-        }
-        if (node->next != NULL)
-        {
-            node->next->prec = node->prec;
-        }
-        else
-        {
-            queue->tail = node->prec;
-        }
-        node->prec->next = node->next;
-        node->next = node->prec;
-        node->prec = aux;
-        aux = NULL;
+        lst->head = file1;
+        lst->tail = file1;
+    }
+    else
+    {
+        lst->tail->next = file1;
+        file1->prec = lst->tail;
+        lst->tail = file1;
+    }
 
+    Pthread_mutex_unlock(&queue_mtx);
+
+    return 1;
+}
+static void swap (fifo_node* n1, fifo_node* n2)
+{
+    char* tmp_path = n1->path;
+    size_t tmp_ref_no = n1->ref_no;
+    n1->path = n2->path;
+    n2->path = tmp_path;
+    n1->ref_no = n2->ref_no;
+    n2->ref_no = tmp_ref_no;
+}
+static int queue_lfu(fifo_node** node)
+{
+    Pthread_mutex_lock(&queue_mtx);
+
+    if (queue == NULL || *node == NULL)
+    {
+        errno = EINVAL;
+        Pthread_mutex_unlock(&queue_mtx);
+        return -1;
+    }
+
+    (*node)->ref_no++;
+
+    while (queue->head != (*node))
+    {
+        if ((*node)->ref_no > (*node)->prec->ref_no) swap((*node),(*node)->prec);
+        node = &((*node)->prec);
     }
 
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
 }
+
 
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
@@ -1174,7 +1188,10 @@ static int hash_add_file (hash* tbl, file* file1)
         fifo_node* newfile_placeholder = fifo_node_init(file1->path);
         file1->queue_pointer = newfile_placeholder;
 
-        if (fifo_push(queue,newfile_placeholder))
+        int queue_insert_out;
+        if (politic != 2) queue_insert_out = fifo_push(queue,newfile_placeholder);
+        else queue_insert_out = queue_add_tail(queue,newfile_placeholder);
+        if (queue_insert_out)
         {
             Pthread_mutex_lock(&stats_mtx);
             curr_no++;
@@ -1639,7 +1656,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
-                if (politic == 2) queue_lfu(tmp->queue_pointer);
+                if (politic == 2) queue_lfu(&tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1678,7 +1695,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
-                if (politic == 2) queue_lfu(tmp->queue_pointer);
+                if (politic == 2) queue_lfu(&tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1823,7 +1840,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
             if (politic == 1) queue_lru(tmp->queue_pointer);
-            if (politic == 2) queue_lfu(tmp->queue_pointer);
+            if (politic == 2) queue_lfu(&tmp->queue_pointer);
             return 0;
         }
         else
@@ -1874,7 +1891,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
-                    if (politic == 2) queue_lfu(cursor->queue_pointer);
+                    if (politic == 2) queue_lfu(&cursor->queue_pointer);
                 }
                 cursor = cursor->next;
             }
@@ -1915,7 +1932,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     pkd++;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
-                    if (politic == 2) queue_lfu(cursor->queue_pointer);
+                    if (politic == 2) queue_lfu(&cursor->queue_pointer);
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -1993,7 +2010,7 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
-    if (politic == 2) queue_lfu(tmp->queue_pointer);
+    if (politic == 2) queue_lfu(&tmp->queue_pointer);
     return out;
 
 }
@@ -2062,7 +2079,7 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
-    if (politic == 2) queue_lfu(tmp->queue_pointer);
+    if (politic == 2) queue_lfu(&tmp->queue_pointer);
     return out;
 }
 static int lock_File (char* path, size_t c_info)
@@ -2094,7 +2111,7 @@ static int lock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2130,7 +2147,7 @@ static int unlock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     else
@@ -2170,7 +2187,7 @@ static int close_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(tmp->queue_pointer);
+        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     else
@@ -3089,27 +3106,6 @@ int main(int argc, char* argv[])
             return -1;
         }
 
-        // DA TOGLIERE
-        {
-            /*
-            printf("\nTEST DA TOGLIERE\n");
-            fifo_node* f1 = fifo_node_init("f1");
-            fifo_node* f2 = fifo_node_init("f2");
-            fifo_node* f3 = fifo_node_init("f3");
-            fifo_node* f4 = fifo_node_init("f4");
-            fifo_push(queue,f1);
-            fifo_push(queue,f2);
-            fifo_push(queue,f3);
-            fifo_push(queue,f4);
-            fifo_print(queue);
-            queue_lfu(f1);
-            queue_lfu(f2);
-            queue_lfu(f3);
-            queue_lfu(f1);
-            fifo_print(queue);
-            printf("\nTEST DA TOGLIERE\n");
-            */
-        }
         // FILE DI LOG
         log_file = fopen(LOG_NAME,"w"); // apro il file di log in scrittura
         fflush(log_file);   // ripulisco il file aperto da precedenti scritture
