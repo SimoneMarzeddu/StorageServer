@@ -739,4 +739,4 @@ int readNFiles(int N, const char* dir)
     return file_N;
 }
 
-// UPDATE: commenti aggiornati
+// UPDATE: LRU

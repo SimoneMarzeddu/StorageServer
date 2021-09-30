@@ -14,7 +14,7 @@ sleep 2 #attesa post avvio server
 #il client 2 scriverà un solo file ma di grandi dimensioni -> 3 files verranno rimpiazzati e il server ne conterrà 1
 #in questa variante del test2 ho verificato che la rimozione di più di un file funzioni correttamente
 
-./client -f ./ssocket.sk -t 200 -w ./Test2_variant/cartella2_a -D ./Test2_variant/w_aux_dir2 -r ./Test2_variant/cartella2_a/f3.txt -p
+./client -f ./ssocket.sk -t 200 -w ./Test2_variant/cartella2_a -D ./Test2_variant/w_aux_dir2 -p
 
 ./client -f ./ssocket.sk -t 200 -w ./Test2_variant/cartella2_b -D ./Test2_variant/w_aux_dir2 -p
 

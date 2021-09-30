@@ -54,7 +54,6 @@ typedef struct sfifonode
     char* path;
     struct sfifonode* next;
     struct sfifonode* prec;
-    size_t ref_no;
 }fifo_node;
 
 typedef struct sfifo
@@ -94,7 +93,6 @@ typedef struct shash
 /*
  * 0 -> FIFO
  * 1 -> LRU
- * 2 -> LFU
 */
 static size_t politic = 0;
 
@@ -544,7 +542,6 @@ static fifo_node* fifo_node_init (char* path)
         return NULL;
     }
     strcpy(tmp->path,path);
-    tmp->ref_no = 0;
 
     return tmp;
 }
@@ -724,7 +721,9 @@ static int fifo_rem_file (fifo* lst, char* path)
     return 0;
 }
 
+/*
 static void fifo_print (fifo* lst)
+
 {
     Pthread_mutex_lock(&queue_mtx);
 
@@ -746,6 +745,7 @@ static void fifo_print (fifo* lst)
 
     Pthread_mutex_unlock(&queue_mtx);
 }
+*/
 
 //    FUNZIONI PER AMMINISTRARE ALTRE POLITICHE    //
 
@@ -784,65 +784,6 @@ static int queue_lru(fifo_node* node)
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
 }
-static int queue_add_tail (fifo* lst, fifo_node* file1)
-{
-    Pthread_mutex_lock(&queue_mtx);
-
-    if (lst == NULL || file1 == NULL)
-    {
-        errno = EINVAL;
-        Pthread_mutex_unlock(&queue_mtx);
-        return -1;
-    }
-
-    if (lst->head == NULL)
-    {
-        lst->head = file1;
-        lst->tail = file1;
-    }
-    else
-    {
-        lst->tail->next = file1;
-        file1->prec = lst->tail;
-        lst->tail = file1;
-    }
-
-    Pthread_mutex_unlock(&queue_mtx);
-
-    return 1;
-}
-static void swap (fifo_node* n1, fifo_node* n2)
-{
-    char* tmp_path = n1->path;
-    size_t tmp_ref_no = n1->ref_no;
-    n1->path = n2->path;
-    n2->path = tmp_path;
-    n1->ref_no = n2->ref_no;
-    n2->ref_no = tmp_ref_no;
-}
-static int queue_lfu(fifo_node** node)
-{
-    Pthread_mutex_lock(&queue_mtx);
-
-    if (queue == NULL || *node == NULL)
-    {
-        errno = EINVAL;
-        Pthread_mutex_unlock(&queue_mtx);
-        return -1;
-    }
-
-    (*node)->ref_no++;
-
-    while (queue->head != (*node))
-    {
-        if ((*node)->ref_no > (*node)->prec->ref_no) swap((*node),(*node)->prec);
-        node = &((*node)->prec);
-    }
-
-    Pthread_mutex_unlock(&queue_mtx);
-    return 1;
-}
-
 
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
@@ -1188,10 +1129,7 @@ static int hash_add_file (hash* tbl, file* file1)
         fifo_node* newfile_placeholder = fifo_node_init(file1->path);
         file1->queue_pointer = newfile_placeholder;
 
-        int queue_insert_out;
-        if (politic != 2) queue_insert_out = fifo_push(queue,newfile_placeholder);
-        else queue_insert_out = queue_add_tail(queue,newfile_placeholder);
-        if (queue_insert_out)
+        if (fifo_push(queue,newfile_placeholder))
         {
             Pthread_mutex_lock(&stats_mtx);
             curr_no++;
@@ -1656,7 +1594,6 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
-                if (politic == 2) queue_lfu(&tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1695,7 +1632,6 @@ static int open_File (char* path, int flags, size_t c_info)
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
                 if (politic == 1) queue_lru(tmp->queue_pointer);
-                if (politic == 2) queue_lfu(&tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1840,7 +1776,6 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
             if (politic == 1) queue_lru(tmp->queue_pointer);
-            if (politic == 2) queue_lfu(&tmp->queue_pointer);
             return 0;
         }
         else
@@ -1891,7 +1826,6 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
-                    if (politic == 2) queue_lfu(&cursor->queue_pointer);
                 }
                 cursor = cursor->next;
             }
@@ -1932,7 +1866,6 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     pkd++;
                     r_num++;
                     if (politic == 1) queue_lru(cursor->queue_pointer);
-                    if (politic == 2) queue_lfu(&cursor->queue_pointer);
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -2010,7 +1943,6 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
-    if (politic == 2) queue_lfu(&tmp->queue_pointer);
     return out;
 
 }
@@ -2079,7 +2011,6 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
 
     if (politic == 1) queue_lru(tmp->queue_pointer);
-    if (politic == 2) queue_lfu(&tmp->queue_pointer);
     return out;
 }
 static int lock_File (char* path, size_t c_info)
@@ -2111,7 +2042,6 @@ static int lock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2147,7 +2077,6 @@ static int unlock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     else
@@ -2187,7 +2116,6 @@ static int close_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(tmp->queue_pointer);
-        if (politic == 2) queue_lfu(&tmp->queue_pointer);
         return 0;
     }
     else
@@ -3005,13 +2933,8 @@ int main(int argc, char* argv[])
                                             politic = 1;
                                         }
                                         else
-                                        if (strcmp(valore,"LFU") == 0)
                                         {
-                                            politic = 2;
-                                        }
-                                        else
-                                        {
-                                            printf("Errore di Configurazione : politiche ammesse: FIFO, LRU, LFU\n");
+                                            printf("Errore di Configurazione : politiche ammesse: FIFO, LRU\n");
                                             printf("Il Server è stato avviato con parametri DEFAULT\n");
                                             break;
                                         }
@@ -3349,4 +3272,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: commenti aggiornati
+// UPDATE: LRU
