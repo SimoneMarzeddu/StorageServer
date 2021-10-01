@@ -2013,7 +2013,7 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     if (politic == 1) queue_lru(tmp->queue_pointer);
     return out;
 }
-static int lock_File (char* path, size_t c_info)
+/*static int lock_File (char* path, size_t c_info)
 {
     if (path == NULL)
     {
@@ -2046,6 +2046,40 @@ static int lock_File (char* path, size_t c_info)
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     return -1;
+}*/
+static int lock_File (char* path, size_t c_info)
+{
+    if (path == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    file* tmp = hash_get_file(storage,path);
+    if(tmp == NULL) return -1;
+
+    f_list* tmp_lst = hash_get_list(storage,path);
+    if(tmp_lst == NULL) return -1;
+
+    Pthread_mutex_lock(&(tmp_lst->mtx));
+    if(tmp->lock_owner == 0 || tmp->lock_owner == c_info)
+    {
+        tmp->lock_owner = c_info;
+
+        Pthread_mutex_lock(&stats_mtx);
+        lock_no++;
+        Pthread_mutex_unlock(&stats_mtx);
+
+        if (c_list_rem_node(tmp->whoop, c_info) == -1) {
+            Pthread_mutex_unlock(&(tmp_lst->mtx));
+            return -1;
+        }
+        Pthread_mutex_unlock(&(tmp_lst->mtx));
+        if (politic == 1) queue_lru(tmp->queue_pointer);
+        return 0;
+    }
+    Pthread_mutex_unlock(&(tmp_lst->mtx));
+    return -2; // valore speciale, quando sarà ricevuto dalla do_a_job la lock verrà ritentata
 }
 static int unlock_File (char* path, size_t c_info)
 {
@@ -2292,9 +2326,14 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         strcpy(path,token);
 
         // esecuzione della richiesta
-        int res;
+        int res = -2;
         int log_res;
-        res = lock_File(path,fd_c);
+
+        while (res == -2) // il thread attende che la lock sia ottenuta o che si verifichi un errore letale
+        {
+            res = lock_File(path,fd_c);
+        }
+
         if (res == -1)
         {
             log_res = 0;
@@ -3272,4 +3311,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: LRU
+// UPDATE: lock_rework
