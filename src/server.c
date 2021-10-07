@@ -49,18 +49,18 @@ typedef struct sclist
     c_node* tail;
 } c_list;
 
-typedef struct sfifonode
+typedef struct sp_queue_node
 {
     char* path;
-    struct sfifonode* next;
-    struct sfifonode* prec;
-}fifo_node;
+    struct sp_queue_node* next;
+    struct sp_queue_node* prec;
+}p_queue_node;
 
-typedef struct sfifo
+typedef struct sp_queue
 {
-    fifo_node* head;
-    fifo_node* tail;
-} fifo;
+    p_queue_node* head;
+    p_queue_node* tail;
+} p_queue;
 
 typedef struct sfile
 {
@@ -71,7 +71,7 @@ typedef struct sfile
     size_t op;
     struct sfile* next;
     struct sfile* prec;
-    fifo_node* queue_pointer;
+    p_queue_node* queue_pointer;
 } file;
 
 typedef struct sfilelst
@@ -94,7 +94,7 @@ typedef struct shash
  * 0 -> FIFO
  * 1 -> LRU
 */
-static size_t politic = 0;
+static size_t politic = 0; // flag indicante la politica adottata
 
 static size_t thread_no;    // numero di thread worker del server
 static size_t max_size;    // dimensione massima dello storage
@@ -104,8 +104,8 @@ static size_t curr_no = 0;     // numero corrente di files nello storage
 
 static hash* storage = NULL;    // struttura dati in cui saranno raccolti i files amministratidal server
 
-static fifo* queue = NULL;      // struttura dati di appoggio per la gestione dei rimpizzamenti con politica fifo
-pthread_mutex_t queue_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sulla coda fifo
+static p_queue* queue = NULL;      // struttura dati di appoggio per la gestione dei rimpizzamenti con politica p_queue
+pthread_mutex_t queue_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sulla coda p_queue
 
 static c_list* coda = NULL;     // struttura dati di tipo coda FIFO per la comunicazione Master/Worker (uso improprio della nomenclatura "c_info")
 pthread_mutex_t coda_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sugli accessi alla coda
@@ -419,7 +419,7 @@ static file* file_init (char* path, char* cnt, size_t lo)
         return NULL;
     }
 
-    size_t path_len = strnlen(path,UNIX_MAX_STANDARD_FILENAME_LENGHT);
+    size_t path_len = strlen(path);
     size_t cnt_len = strlen(cnt);
     if (path_len > UNIX_MAX_STANDARD_FILENAME_LENGHT)
     {
@@ -516,17 +516,17 @@ static file* file_copy (file* file1)
     return copy;
 }
 
-//    FUNZIONI PER AMMINISTRARE LA POLITICA FIFO DELLA "FIFO* QUEUE"   //
+//    FUNZIONI PER AMMINISTRARE LE POLITICHE DI RIMPIAZZAMENTO"   //
 /**
- *   @brief Funzione che inizializza un nodo per la coda FIFO
+ *   @brief Funzione che inizializza un nodo per la coda di gestione per la politica dei rimpiazzamenti
  *
  *   @param path  path assoluto univoco del file/nodo
  *
- *   @return puntatore al fifo_node, NULL per fallimento
+ *   @return puntatore al p_queue_node, NULL per fallimento
  */
-static fifo_node* fifo_node_init (char* path)
+static p_queue_node* p_queue_node_init (char* path)
 {
-    fifo_node* tmp = malloc(sizeof(fifo_node));
+    p_queue_node* tmp = malloc(sizeof(p_queue_node));
     if (tmp == NULL)
     {
         errno = ENOMEM;
@@ -546,13 +546,13 @@ static fifo_node* fifo_node_init (char* path)
     return tmp;
 }
 /**
- *   @brief Funzione che libera lo spazio allocato per un nodo per la coda FIFO
+ *   @brief Funzione che libera lo spazio allocato per un nodo di p_queue
  *
- *   @param node1  puntatore al fifo_node
+ *   @param node1  puntatore al p_queue_node
  *
  *   @return //
  */
-static void fifo_node_free (fifo_node* node1)
+static void p_queue_node_free (p_queue_node* node1)
 {
     if (node1 == NULL) return;
     free(node1->path);
@@ -560,15 +560,15 @@ static void fifo_node_free (fifo_node* node1)
 }
 
 /**
- *   @brief Funzione che inizializza una coda FIFO
+ *   @brief Funzione che inizializza una coda p_queue
  *
  *   @param //
  *
- *   @return puntatore alla coda FIFO, NULL in caso di fallimento
+ *   @return puntatore alla coda, NULL in caso di fallimento
  */
-static fifo* fifo_init ()
+static p_queue* p_queue_init ()
 {
-    fifo* tmp = malloc(sizeof(fifo));
+    p_queue* tmp = malloc(sizeof(p_queue));
     if (tmp == NULL)
     {
         errno = ENOMEM;
@@ -581,13 +581,13 @@ static fifo* fifo_init ()
     return tmp;
 }
 /**
- *   @brief Funzione libera lo spazio allocato per una coda FIFO
+ *   @brief Funzione libera lo spazio allocato per una coda p_queue
  *
- *   @param puntatore alla coda FIFO
+ *   @param puntatore alla coda p_queue
  *
  *   @return //
  */
-static void fifo_free (fifo* lst)
+static void p_queue_free (p_queue* lst)
 {
     if (lst == NULL)
     {
@@ -595,12 +595,12 @@ static void fifo_free (fifo* lst)
         return;
     }
 
-    fifo_node* tmp = lst->head;
+    p_queue_node* tmp = lst->head;
 
     while (tmp != NULL)
     {
         lst->head = lst->head->next;
-        fifo_node_free(tmp);
+        p_queue_node_free(tmp);
         tmp = lst->head;
     }
 
@@ -609,14 +609,14 @@ static void fifo_free (fifo* lst)
     free(lst);
 }
 /**
- *   @brief Funzione che esegue la push di un nodo in una coda FIFO
+ *   @brief Funzione che esegue la push di un nodo in una coda p_queue
  *
- *   @param lst puntatore alla coda FIFO
+ *   @param lst puntatore alla coda p_queue
  *   @param file1 puntatore alla nodo
  *
  *   @return 1 -> successo, -1 -> fallimento
  */
-static int fifo_push (fifo* lst, fifo_node* file1)
+static int p_queue_push (p_queue* lst, p_queue_node* file1)
 {
     Pthread_mutex_lock(&queue_mtx);
 
@@ -644,14 +644,14 @@ static int fifo_push (fifo* lst, fifo_node* file1)
     return 1;
 }
 /**
- *   @brief Funzione che rimuove un file da una coda FIFO
+ *   @brief Funzione che rimuove un file da una coda p_queue
  *
- *   @param lst puntatore alla coda FIFO
+ *   @param lst puntatore alla coda p_queue
  *   @param path    path univoco del nodo da rimuovere
  *
  *   @return 0 -> file non trovato, 1 -> successo, -1 -> fallimento
  */
-static int fifo_rem_file (fifo* lst, char* path)
+static int p_queue_rem_file (p_queue* lst, char* path)
 {
     Pthread_mutex_lock(&queue_mtx);
 
@@ -669,7 +669,7 @@ static int fifo_rem_file (fifo* lst, char* path)
         return 0;
     }
 
-    fifo_node * cursor = lst->head;
+    p_queue_node * cursor = lst->head;
     // eliminazione di un nodo in testa
     if (!strncmp(lst->head->path, path,UNIX_MAX_STANDARD_FILENAME_LENGHT)) {
         if(lst->head->next != NULL)
@@ -677,7 +677,7 @@ static int fifo_rem_file (fifo* lst, char* path)
             lst->head->next->prec = NULL;
             lst->head = lst->head->next;
 
-            fifo_node_free(cursor);
+            p_queue_node_free(cursor);
             Pthread_mutex_unlock(&queue_mtx);
             return 1;
         }
@@ -686,7 +686,7 @@ static int fifo_rem_file (fifo* lst, char* path)
             lst->head = NULL;
             lst->tail = NULL;
 
-            fifo_node_free(cursor);
+            p_queue_node_free(cursor);
             Pthread_mutex_unlock(&queue_mtx);
             return 1;
         }
@@ -700,7 +700,7 @@ static int fifo_rem_file (fifo* lst, char* path)
             if (!strncmp(lst->tail->path, path,UNIX_MAX_STANDARD_FILENAME_LENGHT)) {
                 lst->tail->prec->next = NULL;
                 lst->tail = lst->tail->prec;
-                fifo_node_free(cursor);
+                p_queue_node_free(cursor);
                 Pthread_mutex_unlock(&queue_mtx);
                 return 1;
             }
@@ -708,7 +708,7 @@ static int fifo_rem_file (fifo* lst, char* path)
             {
                 cursor->prec->next = cursor->next;
                 cursor->next->prec = cursor->prec;
-                fifo_node_free(cursor);
+                p_queue_node_free(cursor);
                 Pthread_mutex_unlock(&queue_mtx);
                 return 1;
             }
@@ -722,8 +722,7 @@ static int fifo_rem_file (fifo* lst, char* path)
 }
 
 /*
-static void fifo_print (fifo* lst)
-
+static void p_queue_print (p_queue* lst)
 {
     Pthread_mutex_lock(&queue_mtx);
 
@@ -735,7 +734,7 @@ static void fifo_print (fifo* lst)
     }
 
     printf("\nSTART QUEUE \n");
-    fifo_node* cursor = lst->head;
+    p_queue_node* cursor = lst->head;
     while (cursor != NULL)
     {
         printf("%s ->\n",cursor->path);
@@ -747,29 +746,30 @@ static void fifo_print (fifo* lst)
 }
 */
 
-//    FUNZIONI PER AMMINISTRARE ALTRE POLITICHE    //
 
-static int queue_lru(fifo_node* node)
+//    FUNZIONI PER AMMINISTRARE POLITICHE NON FIFO    //
+
+static int queue_lru(p_queue* q, p_queue_node* node)
 {
     Pthread_mutex_lock(&queue_mtx);
 
-    if (queue == NULL || node == NULL)
+    if (q == NULL || node == NULL || q->head == NULL)
     {
         errno = EINVAL;
         Pthread_mutex_unlock(&queue_mtx);
         return -1;
     }
 
-    if (queue->head == node )
+    if (q->head == node )
     {
         Pthread_mutex_unlock(&queue_mtx);
         return 1;
     }
 
-    if (queue->tail == node)
+    if (q->tail == node)
     {
-        queue->tail->prec->next = NULL;
-        queue->tail = queue->tail->prec;
+        q->tail->prec->next = NULL;
+        q->tail = q->tail->prec;
     }
     else
     {
@@ -777,9 +777,9 @@ static int queue_lru(fifo_node* node)
         node->prec->next = node->next;
     }
 
-    queue->head->prec = node;
-    node->next = queue->head;
-    queue->head = node;
+    q->head->prec = node;
+    node->next = q->head;
+    q->head = node;
 
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
@@ -1126,10 +1126,10 @@ static int hash_add_file (hash* tbl, file* file1)
     size_t hsh = hash_function(file1->path) % tbl->lst_no;
     if(hsh != -1 && f_list_add_head(tbl->lists[hsh],file1))
     {
-        fifo_node* newfile_placeholder = fifo_node_init(file1->path);
+        p_queue_node* newfile_placeholder = p_queue_node_init(file1->path);
         file1->queue_pointer = newfile_placeholder;
 
-        if (fifo_push(queue,newfile_placeholder))
+        if (p_queue_push(queue, newfile_placeholder))
         {
             Pthread_mutex_lock(&stats_mtx);
             curr_no++;
@@ -1161,7 +1161,7 @@ static file* hash_rem_file1 (hash* tbl, file* file1)
     if(hsh != -1 )
     {
         file* tmp = f_list_rem_file(tbl->lists[hsh],file1->path);
-        if (tmp != NULL && fifo_rem_file(queue,tmp->path))
+        if (tmp != NULL && p_queue_rem_file(queue, tmp->path))
         {
             Pthread_mutex_lock(&stats_mtx);
             curr_no--;
@@ -1194,7 +1194,7 @@ static file* hash_rem_file2 (hash* tbl, char* path)
     if(hsh != -1 )
     {
         file* tmp = f_list_rem_file(tbl->lists[hsh],path);
-        if (tmp != NULL && fifo_rem_file(queue,tmp->path))
+        if (tmp != NULL && p_queue_rem_file(queue, tmp->path))
         {
             Pthread_mutex_lock(&stats_mtx);
             curr_no--;
@@ -1349,12 +1349,12 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
     }
 
     int bool = 0; // flag per evidenziare l'avvio o meno dell'algoritmo per i rimpiazzamenti
-    fifo_node* p_kill_ff = NULL; // punatatore al nodo della coda fifo che conterrà il path del file potenzialmente rimpiazzabile
+    p_queue_node* p_kill_ff = NULL; // punatatore al nodo della coda p_queue che conterrà il path del file potenzialmente rimpiazzabile
 
     while (curr_size > max_size) // fin quando i valori non sono rientrati entro i limiti
     {
         bool = 1; // la flag viene impostata  per indicare che l'algoritmo di rimpiazzamento è di fatto partito
-        if (p_kill_ff == NULL) p_kill_ff = queue->tail; // la coda fifo verrà effettivamente percorsa dal primo elemento inserito verso l'ultimo
+        if (p_kill_ff == NULL) p_kill_ff = queue->tail; // la coda p_queue verrà effettivamente percorsa dal primo elemento inserito verso l'ultimo
         if (p_kill_ff == NULL)
         {
             f_list_free(replaced);
@@ -1389,7 +1389,7 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
 
         file* copy = file_copy(p_kill_file); // il file rimovibile può essere rimosso, ma prima viene copiato
         if (copy == NULL) return NULL;
-        p_kill_ff = p_kill_ff->prec; // il puntatore verso l'ultimo elemento analizzato nella coda fifo viene aggiornato
+        p_kill_ff = p_kill_ff->prec; // il puntatore verso l'ultimo elemento analizzato nella coda p_queue viene aggiornato
 
         f_list* p_kill_list = hash_get_list(storage,p_kill_ff->path);
         Pthread_mutex_lock(&p_kill_list->mtx);
@@ -1593,7 +1593,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
-                if (politic == 1) queue_lru(tmp->queue_pointer);
+                if (politic == 1) queue_lru(queue, tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1631,7 +1631,7 @@ static int open_File (char* path, int flags, size_t c_info)
                 tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
-                if (politic == 1) queue_lru(tmp->queue_pointer);
+                if (politic == 1) queue_lru(queue, tmp->queue_pointer);
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1775,7 +1775,7 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
             }
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
-            if (politic == 1) queue_lru(tmp->queue_pointer);
+            if (politic == 1) queue_lru(queue, tmp->queue_pointer);
             return 0;
         }
         else
@@ -1825,7 +1825,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     if(f_list_add_head(out, copy) == -1) return NULL;
                     if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
                     r_num++;
-                    if (politic == 1) queue_lru(cursor->queue_pointer);
+                    if (politic == 1) queue_lru(queue, cursor->queue_pointer);
                 }
                 cursor = cursor->next;
             }
@@ -1865,7 +1865,7 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     }
                     pkd++;
                     r_num++;
-                    if (politic == 1) queue_lru(cursor->queue_pointer);
+                    if (politic == 1) queue_lru(queue, cursor->queue_pointer);
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -1942,7 +1942,7 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     f_list* out = hash_replace(storage,path,c_info);
 
-    if (politic == 1) queue_lru(tmp->queue_pointer);
+    if (politic == 1) queue_lru(queue, tmp->queue_pointer);
     return out;
 
 }
@@ -2010,43 +2010,9 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     Pthread_mutex_unlock(&(tmp_lst->mtx));
     f_list* out = hash_replace(storage,path,c_info);
 
-    if (politic == 1) queue_lru(tmp->queue_pointer);
+    if (politic == 1) queue_lru(queue, tmp->queue_pointer);
     return out;
 }
-/*static int lock_File (char* path, size_t c_info)
-{
-    if (path == NULL)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-
-    file* tmp = hash_get_file(storage,path);
-    if(tmp == NULL) return -1;
-
-    f_list* tmp_lst = hash_get_list(storage,path);
-    if(tmp_lst == NULL) return -1;
-
-    Pthread_mutex_lock(&(tmp_lst->mtx));
-    if(tmp->lock_owner == 0 || tmp->lock_owner == c_info)
-    {
-        tmp->lock_owner = c_info;
-
-        Pthread_mutex_lock(&stats_mtx);
-        lock_no++;
-        Pthread_mutex_unlock(&stats_mtx);
-
-        if (c_list_rem_node(tmp->whoop, c_info) == -1) {
-            Pthread_mutex_unlock(&(tmp_lst->mtx));
-            return -1;
-        }
-        Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(tmp->queue_pointer);
-        return 0;
-    }
-    Pthread_mutex_unlock(&(tmp_lst->mtx));
-    return -1;
-}*/
 static int lock_File (char* path, size_t c_info)
 {
     if (path == NULL)
@@ -2075,7 +2041,7 @@ static int lock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2110,7 +2076,7 @@ static int unlock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
         return 0;
     }
     else
@@ -2149,7 +2115,7 @@ static int close_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(tmp->queue_pointer);
+        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
         return 0;
     }
     else
@@ -2821,7 +2787,7 @@ static void* w_routine (void* arg)
     while (1)
     {
         int end = 0; //valore indicante la terminazione del client
-        //un client viene espulso dalla coda secondo la politica fifo
+        //un client viene espulso dalla coda secondo la politica p_queue
         Pthread_mutex_lock(&coda_mtx);
         fd_c = c_list_pop_worker(coda);
         Pthread_mutex_unlock(&coda_mtx);
@@ -2841,7 +2807,6 @@ static void* w_routine (void* arg)
             //il client viene servito dal worker in ogni sua richiesta sino alla disconnessione
             int len = readn(fd_c, quest, MSG_SIZE);
 
-            //printf("\n il comando letto è : %s",quest);
             if (len == -1)
             {// il client è disconnesso, il worker attenderà il prossimo
                 end = 1;
@@ -3061,7 +3026,7 @@ int main(int argc, char* argv[])
             return -1;
         }
 
-        queue = fifo_init();
+        queue = p_queue_init();
         if (queue == NULL)
         {
             errno = ENOMEM;
@@ -3302,7 +3267,7 @@ int main(int argc, char* argv[])
 
     {
         hash_free(storage);
-        fifo_free(queue);
+        p_queue_free(queue);
         c_list_free(coda);
         fclose(log_file);
 
@@ -3311,4 +3276,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: lock_rework
+// UPDATE: 07/10
