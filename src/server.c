@@ -110,6 +110,8 @@ pthread_mutex_t queue_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclus
 static c_list* coda = NULL;     // struttura dati di tipo coda FIFO per la comunicazione Master/Worker (uso improprio della nomenclatura "c_info")
 pthread_mutex_t coda_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per mutua esclusione sugli accessi alla coda
 pthread_cond_t wait_coda = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t lock_mtx = PTHREAD_MUTEX_INITIALIZER; // mutex per attesa di ottenimento della lock
+pthread_cond_t wait_server_lock = PTHREAD_COND_INITIALIZER;
 
 volatile sig_atomic_t t = 0; // variabile settata dal signal handler
 
@@ -1150,7 +1152,7 @@ static int hash_add_file (hash* tbl, file* file1)
  *
  *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
 */
-static file* hash_rem_file1 (hash* tbl, file* file1)
+static file* hash_rem_file (hash* tbl, file* file1)
 {
     if (tbl == NULL || file1 == NULL)
     {
@@ -1161,39 +1163,6 @@ static file* hash_rem_file1 (hash* tbl, file* file1)
     if(hsh != -1 )
     {
         file* tmp = f_list_rem_file(tbl->lists[hsh],file1->path);
-        if (tmp != NULL && p_queue_rem_file(queue, tmp->path))
-        {
-            Pthread_mutex_lock(&stats_mtx);
-            curr_no--;
-            curr_size = curr_size - strlen(tmp->cnt);
-            Pthread_mutex_unlock(&stats_mtx);
-            return tmp;
-        }
-    }
-
-    return NULL;
-}
-/**
- *   @brief funzione che rimuove un file ad una tabella hash dato il suo path assoluto
- *
- *   @param tbl puntatore alla tabella hash
- *   @param path    path assoluto del file
- *
- *   @return puntatore alla copia del file rimosso dalla tabella hash -> successo, NULL -> fallimento
-*/
-static file* hash_rem_file2 (hash* tbl, char* path)
-{
-    if (tbl == NULL || path == NULL)
-    {
-        errno = EINVAL;
-        return NULL;
-    }
-
-    size_t hsh = hash_function(path) % tbl->lst_no;
-
-    if(hsh != -1 )
-    {
-        file* tmp = f_list_rem_file(tbl->lists[hsh],path);
         if (tmp != NULL && p_queue_rem_file(queue, tmp->path))
         {
             Pthread_mutex_lock(&stats_mtx);
@@ -1322,6 +1291,31 @@ static int hash_cont_file (hash* tbl, char* path)
     }
     return -1;
 }
+static int hash_lock_all_lists (hash* tbl)
+{
+    if (tbl == NULL || tbl->lists == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    int i;
+    for (i = 0; i< tbl->lst_no; i++) Pthread_mutex_lock(&(tbl->lists[i]->mtx));
+    return 0;
+}
+static int hash_unlock_all_lists (hash* tbl)
+{
+    if (tbl == NULL || tbl->lists == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    int i;
+    for (i = 0; i< tbl->lst_no; i++) Pthread_mutex_unlock(&(tbl->lists[i]->mtx));
+    return 0;
+}
+
 /**
  *   @brief funzione che controlla la presenza di un superamento dei limiti massimi di memoria e se presente applica il rimpiazzamento
  *
@@ -1351,8 +1345,10 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
     int bool = 0; // flag per evidenziare l'avvio o meno dell'algoritmo per i rimpiazzamenti
     p_queue_node* p_kill_ff = NULL; // punatatore al nodo della coda p_queue che conterrà il path del file potenzialmente rimpiazzabile
 
+    Pthread_mutex_lock(&stats_mtx);
     while (curr_size > max_size) // fin quando i valori non sono rientrati entro i limiti
     {
+        Pthread_mutex_unlock(&stats_mtx);
         bool = 1; // la flag viene impostata  per indicare che l'algoritmo di rimpiazzamento è di fatto partito
         if (p_kill_ff == NULL) p_kill_ff = queue->tail; // la coda p_queue verrà effettivamente percorsa dal primo elemento inserito verso l'ultimo
         if (p_kill_ff == NULL)
@@ -1388,28 +1384,37 @@ static f_list* hash_replace (hash* tbl, const char* path, size_t c_info)
         }
 
         file* copy = file_copy(p_kill_file); // il file rimovibile può essere rimosso, ma prima viene copiato
-        if (copy == NULL) return NULL;
+        if (copy == NULL)
+        {
+            f_list_free(replaced);
+            return NULL;
+        }
         p_kill_ff = p_kill_ff->prec; // il puntatore verso l'ultimo elemento analizzato nella coda p_queue viene aggiornato
 
-        f_list* p_kill_list = hash_get_list(storage,p_kill_ff->path);
-        Pthread_mutex_lock(&p_kill_list->mtx);
-        if (hash_rem_file1(storage,p_kill_file) == NULL)
+        if (hash_rem_file(storage, p_kill_file) == NULL) // il file rimovibile viene rimosso
         {
-            Pthread_mutex_unlock(&p_kill_list->mtx);
-            return NULL; // il file rimovibile viene rimosso
+            f_list_free(replaced);
+            return NULL;
         }
-        Pthread_mutex_unlock(&p_kill_list->mtx);
 
-        if (f_list_add_head(replaced,copy) == -1) return NULL; // la copia del file rimosso viene inserita nella lista di output
+        if (f_list_add_head(replaced,copy) == -1) // la copia del file rimosso viene inserita nella lista di output
+        {
+            f_list_free(replaced);
+            return NULL;
+        }
+
         Pthread_mutex_lock(&stats_mtx);
         replace_no++;   // le statistiche vengono aggiornate
-        Pthread_mutex_unlock(&stats_mtx);
     }
 
-    Pthread_mutex_lock(&stats_mtx);
     if (bool == 1) replace_alg_no++;// le statistiche vengono aggiornate
     if (curr_size > max_size_reached) max_size_reached = curr_size;// le statistiche vengono aggiornate
     Pthread_mutex_unlock(&stats_mtx);
+
+    Pthread_mutex_lock(&lock_mtx);
+    pthread_cond_broadcast(&wait_server_lock);
+    Pthread_mutex_unlock(&lock_mtx);
+
     return replaced;
 }
 /**
@@ -1439,6 +1444,11 @@ static void hash_lo_reset (hash* tbl, size_t fd_c)
         }
         Pthread_mutex_unlock(&(tbl->lists[i]->mtx));
     }
+
+    Pthread_mutex_lock(&lock_mtx);
+    pthread_cond_broadcast(&wait_server_lock);
+    Pthread_mutex_unlock(&lock_mtx);
+
 }
 
 //    FUNZIONI PER IL SERVER   //
@@ -1576,12 +1586,14 @@ static int open_File (char* path, int flags, size_t c_info)
                 return -1;
             }
 
-            file *tmp = hash_get_file(storage, path);
-            if (tmp == NULL) return -1;
             f_list *tmp_lst = hash_get_list(storage, path);
             if (tmp_lst == NULL) return -1;
 
             Pthread_mutex_lock(&(tmp_lst->mtx));
+
+            file *tmp = hash_get_file(storage, path);
+            if (tmp == NULL) return -1;
+
 
             if (tmp->lock_owner == 0 || tmp->lock_owner == c_info)
             {
@@ -1609,13 +1621,15 @@ static int open_File (char* path, int flags, size_t c_info)
                 return -1;
             }
 
-            file* tmp = hash_get_file(storage,path);
-            if(tmp == NULL) return -1;
-
             f_list* tmp_lst = hash_get_list(storage,path);
             if(tmp_lst == NULL) return -1;
 
             Pthread_mutex_lock(&(tmp_lst->mtx));
+
+            file* tmp = hash_get_file(storage,path);
+            if(tmp == NULL) return -1;
+
+
             Pthread_mutex_lock(&stats_mtx);
             openlock_no++;
             lock_no++;
@@ -1938,9 +1952,11 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     write_no++;
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
-
     Pthread_mutex_unlock(&(tmp_lst->mtx));
+
+    if (hash_lock_all_lists(storage) != 0) return NULL;
     f_list* out = hash_replace(storage,path,c_info);
+    if (hash_unlock_all_lists(storage) != 0) return NULL;
 
     if (politic == 1) queue_lru(queue, tmp->queue_pointer);
     return out;
@@ -2077,6 +2093,11 @@ static int unlock_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+
+        Pthread_mutex_lock(&lock_mtx);
+        pthread_cond_broadcast(&wait_server_lock);
+        Pthread_mutex_unlock(&lock_mtx);
+
         return 0;
     }
     else
@@ -2143,7 +2164,7 @@ static int remove_File (char* path, size_t c_info)
 
     if (tmp->lock_owner == c_info)
     {
-        file* dummy = hash_rem_file2(storage,path);
+        file* dummy = hash_rem_file(storage,tmp);
         if (dummy == NULL)
         {
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2151,6 +2172,11 @@ static int remove_File (char* path, size_t c_info)
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         file_free(dummy);
+
+        Pthread_mutex_lock(&lock_mtx);
+        pthread_cond_broadcast(&wait_server_lock);
+        Pthread_mutex_unlock(&lock_mtx);
+
         return 0;
     }
     else
@@ -2295,10 +2321,15 @@ static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
         int res = -2;
         int log_res;
 
+
+        Pthread_mutex_lock(&lock_mtx);
         while (res == -2) // il thread attende che la lock sia ottenuta o che si verifichi un errore letale
         {
             res = lock_File(path,fd_c);
+            if (res == -2) pthread_cond_wait(&wait_server_lock,&lock_mtx); // attesa del segnale inviato dal thread main
+
         }
+        Pthread_mutex_unlock(&lock_mtx);
 
         if (res == -1)
         {
@@ -3276,4 +3307,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: 07/10
+// UPDATE: 11/10 _ lock bella
