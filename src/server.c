@@ -722,7 +722,6 @@ static int p_queue_rem_file (p_queue* lst, char* path)
     Pthread_mutex_unlock(&queue_mtx);
     return 0;
 }
-
 /*
 static void p_queue_print (p_queue* lst)
 {
@@ -748,9 +747,15 @@ static void p_queue_print (p_queue* lst)
 }
 */
 
-
 //    FUNZIONI PER AMMINISTRARE POLITICHE NON FIFO    //
-
+/**
+ *   @brief Funzione che riposiziona un nodo della p_queue poichè questa rispetti l'ordinamento LRU
+ *
+ *   @param q   puntatore alla coda p_queue
+ *   @param node    puntatore al nodo della coda da riposizionare
+ *
+ *   @return 1 -> successo, -1 -> fallimento
+ */
 static int queue_lru(p_queue* q, p_queue_node* node)
 {
     Pthread_mutex_lock(&queue_mtx);
@@ -786,7 +791,6 @@ static int queue_lru(p_queue* q, p_queue_node* node)
     Pthread_mutex_unlock(&queue_mtx);
     return 1;
 }
-
 
 //    FUNZIONI PER AMMINISTRARE LISTE DI FILE    //
 /**
@@ -1291,6 +1295,13 @@ static int hash_cont_file (hash* tbl, char* path)
     }
     return -1;
 }
+/**
+ *   @brief funzione che ottiene la lock su tutte le liste di una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @return -1 -> errore, 0 -> successo
+*/
 static int hash_lock_all_lists (hash* tbl)
 {
     if (tbl == NULL || tbl->lists == NULL)
@@ -1303,6 +1314,13 @@ static int hash_lock_all_lists (hash* tbl)
     for (i = 0; i< tbl->lst_no; i++) Pthread_mutex_lock(&(tbl->lists[i]->mtx));
     return 0;
 }
+/**
+ *   @brief funzione che rilascia la lock su tutte le liste di una tabella hash
+ *
+ *   @param tbl puntatore alla tabella hash
+ *
+ *   @return -1 -> errore, 0 -> successo
+*/
 static int hash_unlock_all_lists (hash* tbl)
 {
     if (tbl == NULL || tbl->lists == NULL)
@@ -1315,7 +1333,6 @@ static int hash_unlock_all_lists (hash* tbl)
     for (i = 0; i< tbl->lst_no; i++) Pthread_mutex_unlock(&(tbl->lists[i]->mtx));
     return 0;
 }
-
 /**
  *   @brief funzione che controlla la presenza di un superamento dei limiti massimi di memoria e se presente applica il rimpiazzamento
  *
@@ -1450,7 +1467,6 @@ static void hash_lo_reset (hash* tbl, size_t fd_c)
     Pthread_mutex_unlock(&lock_mtx);
 
 }
-
 //    FUNZIONI PER IL SERVER   //
 static int isNumber(const char* s, long* n)
 {
@@ -1493,7 +1509,6 @@ static int max_up (fd_set set, int fdmax)
     assert(1==0);
     return -1;
 }
-
 /**
  *   @brief Funzione che permette di effettuare la read completandola in seguito alla ricezione di un segnale
  *
@@ -1525,7 +1540,6 @@ int readn(long fd, void *buf, size_t size) {
 
     return readn;
 }
-
 /**
  *   @brief Funzione che permette di effettuare la write completandola in seguito alla ricezione di un segnale
  *
@@ -1592,7 +1606,11 @@ static int open_File (char* path, int flags, size_t c_info)
             Pthread_mutex_lock(&(tmp_lst->mtx));
 
             file *tmp = hash_get_file(storage, path);
-            if (tmp == NULL) return -1;
+            if (tmp == NULL)
+            {
+                Pthread_mutex_unlock(&(tmp_lst->mtx));
+                return -1;
+            }
 
 
             if (tmp->lock_owner == 0 || tmp->lock_owner == c_info)
@@ -1605,7 +1623,13 @@ static int open_File (char* path, int flags, size_t c_info)
                 tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
-                if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+                if (politic == 1)
+                {
+                    if (queue_lru(queue, tmp->queue_pointer) == -1)
+                    {
+                        return -1;
+                    }
+                }
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1627,7 +1651,11 @@ static int open_File (char* path, int flags, size_t c_info)
             Pthread_mutex_lock(&(tmp_lst->mtx));
 
             file* tmp = hash_get_file(storage,path);
-            if(tmp == NULL) return -1;
+            if(tmp == NULL)
+            {
+                Pthread_mutex_unlock(&(tmp_lst->mtx));
+                return -1;
+            }
 
 
             Pthread_mutex_lock(&stats_mtx);
@@ -1645,7 +1673,13 @@ static int open_File (char* path, int flags, size_t c_info)
                 tmp->op = 1;
                 Pthread_mutex_unlock(&(tmp_lst->mtx));
 
-                if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+                if (politic == 1)
+                {
+                    if (queue_lru(queue, tmp->queue_pointer) == -1)
+                    {
+                        return -1;
+                    }
+                }
                 return 0;
             }
             Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -1789,7 +1823,13 @@ static int read_File (char* path, char* buf, size_t* size, size_t c_info)
             }
 
             Pthread_mutex_unlock(&tmp_lst->mtx);
-            if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+            if (politic == 1)
+            {
+                if (queue_lru(queue, tmp->queue_pointer) == -1)
+                {
+                    return -1;
+                }
+            }
             return 0;
         }
         else
@@ -1834,12 +1874,31 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                 if(cursor->lock_owner == 0 || cursor->lock_owner == c_info)
                 {
                     file* copy = file_copy(cursor);
-                    if(copy == NULL) return NULL;
+                    if(copy == NULL)
+                    {
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
+                        return NULL;
+                    }
                     total = total + strlen(copy->cnt);
-                    if(f_list_add_head(out, copy) == -1) return NULL;
-                    if(c_list_rem_node(cursor->whoop,c_info) == -1) return NULL;
+                    if(f_list_add_head(out, copy) == -1)
+                    {
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
+                        return NULL;
+                    }
+                    if(c_list_rem_node(cursor->whoop,c_info) == -1)
+                    {
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
+                        return NULL;
+                    }
                     r_num++;
-                    if (politic == 1) queue_lru(queue, cursor->queue_pointer);
+                    if (politic == 1)
+                    {
+                        if (queue_lru(queue, cursor->queue_pointer) == -1)
+                        {
+                            Pthread_mutex_unlock(&storage->lists[i]->mtx);
+                            return NULL;
+                        }
+                    }
                 }
                 cursor = cursor->next;
             }
@@ -1863,23 +1922,30 @@ static f_list* read_N_File (int N, int* count, size_t c_info)
                     file* copy = file_copy(cursor);
                     if(copy == NULL)
                     {
-                        Pthread_mutex_lock(&storage->lists[i]->mtx);
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
                         return NULL;
                     }
                     total = total + strlen(copy->cnt);
                     if(f_list_add_head(out, copy) == -1)
                     {
-                        Pthread_mutex_lock(&storage->lists[i]->mtx);
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
                         return NULL;
                     }
                     if(c_list_rem_node(cursor->whoop,c_info) == -1)
                     {
-                        Pthread_mutex_lock(&storage->lists[i]->mtx);
+                        Pthread_mutex_unlock(&storage->lists[i]->mtx);
                         return NULL;
                     }
                     pkd++;
                     r_num++;
-                    if (politic == 1) queue_lru(queue, cursor->queue_pointer);
+                    if (politic == 1)
+                    {
+                        if (queue_lru(queue, cursor->queue_pointer) == -1)
+                        {
+                            Pthread_mutex_unlock(&storage->lists[i]->mtx);
+                            return NULL;
+                        }
+                    }
                     total = total + strlen(copy->cnt);
                 }
                 cursor = cursor->next;
@@ -1942,7 +2008,7 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     free(tmp->cnt);
     size_t size_na = strlen(cnt);
     tmp->cnt = malloc(sizeof(char)*MAX_CNT_LEN);
-    if (strcpy(tmp->cnt,cnt) == NULL)//size_na
+    if (strcpy(tmp->cnt,cnt) == NULL)
     {
         Pthread_mutex_unlock(&(tmp_lst->mtx));
         return NULL;
@@ -1958,7 +2024,13 @@ static f_list* write_File (char* path, char* cnt, size_t c_info)
     f_list* out = hash_replace(storage,path,c_info);
     if (hash_unlock_all_lists(storage) != 0) return NULL;
 
-    if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+    if (politic == 1)
+    {
+        if (queue_lru(queue, tmp->queue_pointer) == -1)
+        {
+            return NULL;
+        }
+    }
     return out;
 
 }
@@ -2022,11 +2094,19 @@ static f_list* append_to_File (char* path, char* cnt, size_t c_info)
     write_no++;
     total_write_size = total_write_size + size_na;
     Pthread_mutex_unlock(&stats_mtx);
-
     Pthread_mutex_unlock(&(tmp_lst->mtx));
-    f_list* out = hash_replace(storage,path,c_info);
 
-    if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+    if (hash_lock_all_lists(storage) != 0) return NULL;
+    f_list* out = hash_replace(storage,path,c_info);
+    if (hash_unlock_all_lists(storage) != 0) return NULL;
+
+    if (politic == 1)
+    {
+        if (queue_lru(queue, tmp->queue_pointer) == -1)
+        {
+            return NULL;
+        }
+    }
     return out;
 }
 static int lock_File (char* path, size_t c_info)
@@ -2044,6 +2124,7 @@ static int lock_File (char* path, size_t c_info)
     if(tmp_lst == NULL) return -1;
 
     Pthread_mutex_lock(&(tmp_lst->mtx));
+
     if(tmp->lock_owner == 0 || tmp->lock_owner == c_info)
     {
         tmp->lock_owner = c_info;
@@ -2057,7 +2138,14 @@ static int lock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+
+        if (politic == 1)
+        {
+            if (queue_lru(queue, tmp->queue_pointer) == -1)
+            {
+                return -1;
+            }
+        }
         return 0;
     }
     Pthread_mutex_unlock(&(tmp_lst->mtx));
@@ -2092,7 +2180,14 @@ static int unlock_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+
+        if (politic == 1)
+        {
+            if (queue_lru(queue, tmp->queue_pointer) == -1)
+            {
+                return -1;
+            }
+        }
 
         Pthread_mutex_lock(&lock_mtx);
         pthread_cond_broadcast(&wait_server_lock);
@@ -2136,7 +2231,14 @@ static int close_File (char* path, size_t c_info)
             return -1;
         }
         Pthread_mutex_unlock(&(tmp_lst->mtx));
-        if (politic == 1) queue_lru(queue, tmp->queue_pointer);
+
+        if (politic == 1)
+        {
+            if (queue_lru(queue, tmp->queue_pointer) == -1)
+            {
+                return -1;
+            }
+        }
         return 0;
     }
     else
@@ -3307,4 +3409,4 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-// UPDATE: 14/10
+// UPDATE: 14/10_2
