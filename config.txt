@@ -1,4 +1,8 @@
-max_no=100
-max_size=33554432
-thread_no=8
-socket_name=./ssocket.sk
+max_no=numero_massimo_di_file_nel_server
+max_size=size_massima_del_server_in_bytes
+thread_no=numero_di_thread
+socket_name=./nome_del_socket.sk
+replace_politic=POLITICA_SELEZIONATA
+
+
+
