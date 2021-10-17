@@ -1587,8 +1587,6 @@ int writen(long fd, const void *buf, size_t nbyte){
 
     return writen;
 }
-
-
 // Le seguenti funzioni sono di fatto speculari a quanto implementato dalla api //
 /* open_FILE : FLAGS
  * 0 -> 00 -> O_CREATE = 0 && O_LOCK = 0
@@ -2314,7 +2312,7 @@ static int remove_File (char* path, size_t c_info)
  *   @param quest   richiesta
  *   @param end     puntatore alla flag indicante l'avvenuta chiusura di una connessione
  *
- *   @return Il numero di bytes scritti, -1 se c'è stato un errore
+ *   @return //
  */
 static void do_a_Job (char* quest, int fd_c, int fd_pipe, int* end)
 {
@@ -3091,7 +3089,7 @@ int main(int argc, char* argv[])
 
     {
         // STRUTTURE PRINCIPALI
-        size_t hash_list_no = max_no * 2;
+        size_t hash_list_no = max_no / 2;
         storage = hash_init(hash_list_no);
         if (storage == NULL)
         {
