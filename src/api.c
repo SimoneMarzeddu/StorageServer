@@ -477,7 +477,7 @@ int writeFile(const char* path, const char* dir)
 
                 if (true_file == NULL)
                 {
-                    printf("Errore nell'apertura del file\n");
+                    perror("ERRORE: apertura del file\n");
                     return -1;
                 } else {
                     fprintf(true_file, "%s", file_cnt);
@@ -577,7 +577,7 @@ int appendToFile(const char* path, void* buf, size_t size, const char* dir)
 
                 if (true_file == NULL)
                 {
-                    printf("Errore nell'apertura del file\n");
+                    perror("ERRORE: apertura del file\n");
                     return -1;
                 } else {
                     fprintf(true_file, "%s", file_cnt);
@@ -720,7 +720,7 @@ int readNFiles(int N, const char* dir)
             true_file = fopen(true_path,"w");
             if (true_file == NULL)
             {
-                printf("Errore nell'apertura del file\n");
+                perror("ERRORE: apertura del file\n");
                 return -1;
             }
             else
@@ -739,4 +739,4 @@ int readNFiles(int N, const char* dir)
     return file_N;
 }
 
-// UPDATE: LRU
+// UPDATE: 24/10

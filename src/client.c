@@ -480,7 +480,7 @@ int main (int argc, char * argv[])
             if (stat(namedir,&info_dir)==-1)
             {
                 if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                printf("ERRORE: %s non e' una directory valida\n",namedir);
+                perror("ERRORE: directory non valida");
             }
             else
             {
@@ -507,13 +507,13 @@ int main (int argc, char * argv[])
                         else
                         {
                             if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                            printf("ERRORE: Utilizzo : -w dirname[,n]\n");
+                            perror("ERRORE: Utilizzo : -w dirname[,n]");
                         }
                 }
                 else
                 {
                         if (flag_stampa==1) printf("OP : -w (scrivi directory) Directory : %s Esito : fallimento\n",namedir);
-                    printf("ERRORE: %s non e' una directory valida\n",namedir);
+                    perror("ERRORE: directory non valida");
                 }
             }
 
@@ -537,7 +537,7 @@ int main (int argc, char * argv[])
                     if ((resolvedPath = realpath(file,resolvedPath)) == NULL)
                     {
                         if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",file);
-                        printf("ERRORE: Il file %s non esiste\n",file);
+                        perror("ERRORE: Il file non esiste");
                     }
                     else
                     {
@@ -602,7 +602,7 @@ int main (int argc, char * argv[])
                         else
                         {
                             if (flag_stampa==1) printf("OP : -W (scrivi file) File : %s Esito : fallimento\n",file);
-                            printf("ERRORE: %s non e' un file regolare\n",file);
+                            perror("ERRORE: file non regolare");
                         }
                     }
                     token2 = strtok_r(NULL,",",&save2);
@@ -638,7 +638,7 @@ int main (int argc, char * argv[])
                 if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
                     if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
-                    printf("ERRORE: Il file %s non esiste\n", file);
+                    perror("ERRORE: Il file non esiste");
                 } else {
                     struct stat info_file;
                     stat(resolvedPath, &info_file);
@@ -679,7 +679,7 @@ int main (int argc, char * argv[])
                                     if (of == NULL) {
                                         if (flag_stampa == 1)
                                             printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
-                                        perror("ERRORE: salvataggio del file\n");
+                                        perror("ERRORE: salvataggio del file");
                                     } else {
                                         fprintf(of, "%s", buf);
                                         fclose(of);
@@ -702,7 +702,7 @@ int main (int argc, char * argv[])
                     }
                     else {
                         if (flag_stampa == 1) printf("OP : -r (leggi file) File : %s Esito : fallimento\n", file);
-                        printf("ERRORE: %s non e' un file regolare\n", file);
+                        perror("ERRORE: file non regolare\n");
                     }
                 }
                 token3 = strtok_r(NULL, ",", &save3);
@@ -721,7 +721,7 @@ int main (int argc, char * argv[])
             if ((N = (int)isNumber(curr->arg))==-1)
             {
                 if (flag_stampa==1) printf("OP : -R (leggi N file) Esito : fallimento\n");
-                printf("L'opzione -R vuole un numero come argomento\n");
+                perror("ERRORE: L'opzione -R vuole un numero come argomento\n");
             }
             else
             {
@@ -763,7 +763,7 @@ int main (int argc, char * argv[])
                 if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
                     if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
-                    printf("ERRORE: Il file %s non esiste\n", file);
+                    perror("ERRORE: Il file non esiste");
                 } else {
                     struct stat info_file;
                     stat(resolvedPath, &info_file);
@@ -778,7 +778,7 @@ int main (int argc, char * argv[])
                         }
                     else {
                         if (flag_stampa == 1) printf("OP : -c (rimuovi file) File : %s Esito : fallimento\n", file);
-                        printf("ERRORE: %s non e' un file regolare\n", file);
+                        perror("ERRORE: file non regolare");
                     }
                 }
 
@@ -798,7 +798,7 @@ int main (int argc, char * argv[])
                 if ((resolvedPath = realpath(file, resolvedPath)) == NULL)
                 {
                     if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
-                    printf("ERRORE: Il file %s non esiste\n", file);
+                   perror("ERRORE: Il file non esiste");
                 } else {
                     struct stat info_file;
                     stat(resolvedPath, &info_file);
@@ -813,7 +813,7 @@ int main (int argc, char * argv[])
                         }
                     else {
                         if (flag_stampa == 1) printf("OP : -l (ottieni la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
-                        printf("ERRORE: %s non e' un file regolare\n", file);
+                        perror("ERRORE: file non regolare");
                     }
                 }
 
@@ -848,7 +848,7 @@ int main (int argc, char * argv[])
                         }
                     else {
                         if (flag_stampa == 1) printf("OP : -u (rilascia la mutua esclusione sul file) File : %s Esito : fallimento\n", file);
-                        printf("ERRORE: %s non e' un file regolare\n", file);
+                        perror("ERRORE: file non regolare\n");
                     }
                 }
 
@@ -886,4 +886,4 @@ int main (int argc, char * argv[])
     return 0;
 }
 
-// UPDATE: LRU
+// UPDATE: 24/10
